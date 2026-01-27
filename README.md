@@ -221,6 +221,15 @@ agentation
 | `packages/shared` | Shared types |
 | `external/opencode` | OpenCode fork (submodule) |
 
+## Uninstall
+
+```bash
+./uninstall.sh              # Remove all (prompts for config)
+./uninstall.sh --keep-config  # Keep opencode.json
+```
+
+Then manually remove Chrome extension: `chrome://extensions/` → Find Agentation → Remove
+
 ## Development
 
 ```bash

@@ -221,6 +221,15 @@ agentation
 | `packages/shared` | 공유 타입 |
 | `external/opencode` | OpenCode fork (서브모듈) |
 
+## 제거
+
+```bash
+./uninstall.sh              # 전체 제거 (설정 파일은 확인 후 삭제)
+./uninstall.sh --keep-config  # opencode.json 유지
+```
+
+Chrome Extension은 수동 제거: `chrome://extensions/` → Agentation 찾기 → 삭제
+
 ## 개발
 
 ```bash
