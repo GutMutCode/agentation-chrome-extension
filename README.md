@@ -22,45 +22,41 @@ AI-powered UI feedback system. Annotate webpage elements and send feedback direc
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Flow:**
-1. User annotates UI elements in Chrome extension
-2. Click "AI에게 지시하기" → WebSocket → MCP Server
-3. MCP Server sends sampling request to OpenCode
-4. OpenCode creates/reuses session and starts LLM conversation
-5. User continues conversation in OpenCode TUI
+## Prerequisites
+
+- **Node.js** 20+
+- **pnpm** (`npm install -g pnpm`)
+- **bun** (`curl -fsSL https://bun.sh/install | bash`)
+- **Chrome** browser
+- **Anthropic API key** or other LLM provider
 
 ## Quick Start
 
-### 1. Clone with submodule
+### 1. Clone
 
 ```bash
 git clone --recursive https://github.com/GutMutCode/agentation.git
 cd agentation
 ```
 
-### 2. Install & Build
+### 2. Build
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Build agentation packages
 pnpm build
-
-# Build OpenCode fork
 cd external/opencode/packages/opencode && bun run build && cd ../../../..
 ```
 
 ### 3. Configure OpenCode
 
-Add to `~/.config/opencode/opencode.json`:
+Create or edit `~/.config/opencode/opencode.json`:
 
 ```json
 {
   "mcp": {
     "agentation": {
       "type": "local",
-      "command": ["node", "/path/to/agentation/packages/mcp-server/dist/cli.js"]
+      "command": ["node", "AGENTATION_PATH/packages/mcp-server/dist/cli.js"]
     }
   },
   "sampling": {
@@ -72,32 +68,69 @@ Add to `~/.config/opencode/opencode.json`:
 }
 ```
 
+**Replace `AGENTATION_PATH`** with your actual path:
+```bash
+# Get your path
+pwd
+# Example: /Users/yourname/agentation
+```
+
 **Sampling modes:**
-- `"prompt"` - Ask for approval each time (recommended)
-- `"auto"` - Auto-approve all requests
-- `"deny"` - Block all requests
+| Mode | Behavior |
+|------|----------|
+| `prompt` | Ask for approval each time (recommended) |
+| `auto` | Auto-approve all requests |
+| `deny` | Block all requests |
 
 ### 4. Load Chrome Extension
 
 1. Open `chrome://extensions/`
-2. Enable "Developer mode"
-3. Click "Load unpacked"
-4. Select `packages/extension` directory
+2. Enable **Developer mode** (top right toggle)
+3. Click **Load unpacked**
+4. Select `packages/extension` folder
 
-### 5. Run OpenCode (fork version)
+### 5. Start OpenCode
 
 ```bash
-./external/opencode/packages/opencode/dist/opencode-darwin-arm64/bin/opencode
+# From agentation directory
+cd external/opencode/packages/opencode
+
+# Run (choose your platform)
+./dist/opencode-darwin-arm64/bin/opencode    # Mac M1/M2
+./dist/opencode-darwin-x64/bin/opencode      # Mac Intel
+./dist/opencode-linux-arm64/bin/opencode     # Linux ARM
+./dist/opencode-linux-x64/bin/opencode       # Linux x64
 ```
+
+First run will prompt for API key configuration.
 
 ## Usage
 
-1. Open any webpage
-2. Click Agentation toolbar (bottom-right)
-3. Toggle annotation mode
-4. Click elements to add feedback
-5. Click "AI에게 지시하기"
-6. Approve in OpenCode TUI → conversation continues in session
+> **Important:** OpenCode must be running before using the extension.
+
+1. **Start OpenCode** (Step 5 above)
+2. **Open any webpage** in Chrome
+3. **Find Agentation toolbar** (floating button, bottom-right corner)
+4. **Enable annotation mode** (click the toggle icon)
+5. **Click any element** to add feedback annotation
+6. **Enter your feedback** in the popup
+7. **Click "AI에게 지시하기"** (Send to AI)
+8. **In OpenCode TUI:** Approve the sampling request (Allow/Deny dialog)
+9. **Continue conversation** in the OpenCode session
+
+## Troubleshooting
+
+### WebSocket not connected
+- Check if OpenCode is running
+- Check if agentation MCP server is loaded: Press `Ctrl+M` in OpenCode TUI
+
+### Sampling request not appearing
+- Verify `sampling` config in `opencode.json`
+- Check mode is not `deny`
+
+### Extension not showing toolbar
+- Refresh the webpage
+- Check extension is enabled in `chrome://extensions/`
 
 ## Packages
 
@@ -106,23 +139,13 @@ Add to `~/.config/opencode/opencode.json`:
 | `packages/extension` | Chrome extension for UI annotation |
 | `packages/mcp-server` | MCP server with WebSocket + sampling |
 | `packages/shared` | Shared types |
-| `external/opencode` | OpenCode fork (submodule) with MCP sampling support |
+| `external/opencode` | OpenCode fork (submodule) |
 
 ## Development
 
 ```bash
-# Watch mode
-pnpm dev
-
-# Type check
-pnpm typecheck
-
-# Update OpenCode submodule
-cd external/opencode
-git pull origin dev
-cd ../..
-git add external/opencode
-git commit -m "chore: update opencode submodule"
+pnpm dev        # Watch mode
+pnpm typecheck  # Type check
 ```
 
 ## License
