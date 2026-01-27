@@ -1075,7 +1075,7 @@
     }
   }
 
-  async function connectToMCP() {
+  async function connectToMCP(silent = false) {
     if (mcpConnecting || mcpConnected) return;
 
     mcpConnecting = true;
@@ -1092,11 +1092,10 @@
           }
         };
 
-        await window.agentationWS.connect();
+        await window.agentationWS.connect(undefined, silent);
         updateMCPStatus(true);
       }
-    } catch (error) {
-      console.log("[Agentation] MCP server not available:", error.message);
+    } catch {
       updateMCPStatus(false);
     } finally {
       mcpConnecting = false;
@@ -1880,7 +1879,7 @@
     loadAnnotations();
     loadSettings();
 
-    setTimeout(() => connectToMCP(), 1000);
+    setTimeout(() => connectToMCP(true), 1000);
   }
 
   if (document.readyState === "loading") {

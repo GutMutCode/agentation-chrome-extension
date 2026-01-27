@@ -8,7 +8,7 @@
 
   const DEFAULT_SERVER_URL = 'ws://localhost:19989';
   const RECONNECT_DELAY = 3000;
-  const MAX_RECONNECT_ATTEMPTS = 5;
+  const MAX_RECONNECT_ATTEMPTS = 3;
 
   class AgentationWebSocketClient {
     constructor() {
@@ -21,12 +21,18 @@
       this.onStatusChange = null;
       this.onFeedbackResult = null;
       this.autoReconnect = true;
+      this.hasEverConnected = false;
+      this.silent = false;
     }
 
     /**
      * Connect to the MCP server
+     * @param {string} url - Server URL
+     * @param {boolean} silent - Suppress connection error logs (for background auto-connect)
      */
-    connect(url = DEFAULT_SERVER_URL) {
+    connect(url = DEFAULT_SERVER_URL, silent = false) {
+      this.silent = silent;
+      
       return new Promise((resolve, reject) => {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
           resolve();
@@ -39,11 +45,11 @@
           this.ws = new WebSocket(url);
 
           this.ws.onopen = () => {
-            console.log('[WS Client] Connected to MCP server');
+            console.log('[Agentation] Connected to MCP server');
             this.connected = true;
+            this.hasEverConnected = true;
             this.reconnectAttempts = 0;
             
-            // Send connect message with page info
             this.sendConnect();
             
             if (this.onStatusChange) {
@@ -54,24 +60,25 @@
           };
 
           this.ws.onclose = (event) => {
-            console.log('[WS Client] Disconnected:', event.code, event.reason);
             this.connected = false;
             
             if (this.onStatusChange) {
               this.onStatusChange({ connected: false });
             }
 
-            // Attempt reconnection if not a clean close
-            if (this.autoReconnect && event.code !== 1000 && this.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+            // Only auto-reconnect if we were previously connected
+            if (this.autoReconnect && this.hasEverConnected && event.code !== 1000 && this.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
               this.reconnectAttempts++;
-              console.log(`[WS Client] Reconnecting in ${RECONNECT_DELAY}ms (attempt ${this.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
-              setTimeout(() => this.connect(this.serverUrl), RECONNECT_DELAY);
+              console.log(`[Agentation] Reconnecting in ${RECONNECT_DELAY / 1000}s...`);
+              setTimeout(() => this.connect(this.serverUrl, true), RECONNECT_DELAY);
             }
           };
 
-          this.ws.onerror = (error) => {
-            console.error('[WS Client] Error:', error);
-            reject(error);
+          this.ws.onerror = () => {
+            if (!this.silent && !this.hasEverConnected && this.reconnectAttempts === 0) {
+              console.log('[Agentation] MCP server not available. Copy to Clipboard still works.');
+            }
+            reject(new Error('Connection failed'));
           };
 
           this.ws.onmessage = (event) => {
@@ -79,7 +86,6 @@
           };
 
         } catch (error) {
-          console.error('[WS Client] Failed to connect:', error);
           reject(error);
         }
       });
