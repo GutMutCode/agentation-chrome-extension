@@ -70,6 +70,8 @@
       markerColor: "Marker Color",
       clearAfterCopy: "Clear after copy",
       blockInteractions: "Block page interactions",
+      includePlaywrightHint: "Include Playwriter hint",
+      playwrightHintPrompt: "[System] You can use Playwriter (NOT Playwright - it's a different tool) to verify the user's current browser session state. The page URL is provided above.",
 
       // Misc
       moreElements: "+{count} more elements",
@@ -149,6 +151,8 @@
       markerColor: "마커 색상",
       clearAfterCopy: "복사 후 삭제",
       blockInteractions: "페이지 상호작용 차단",
+      includePlaywrightHint: "Playwriter 힌트 포함",
+      playwrightHintPrompt: "[System] Playwriter(Playwright가 아닌 별도의 도구)를 사용하여 사용자의 현재 브라우저 세션 상태를 확인할 수 있습니다. 페이지 URL은 위에 제공되어 있습니다.",
 
       // Misc
       moreElements: "+{count}개 더",

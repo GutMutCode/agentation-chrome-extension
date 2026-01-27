@@ -21,6 +21,7 @@
     markerColor: "#ef4444",
     clearAfterCopy: false,
     blockInteractions: false,
+    includePlaywrightHint: false,
     language: "en",
   };
 
@@ -1189,7 +1190,13 @@
         sendBtn.textContent = t("sending");
 
         try {
-          const additionalContext = textarea.value.trim();
+          let additionalContext = textarea.value.trim();
+          if (settings.includePlaywrightHint) {
+            const playwrightHint = t("playwrightHintPrompt");
+            additionalContext = additionalContext
+              ? `${playwrightHint}\n\n${additionalContext}`
+              : playwrightHint;
+          }
           const response = await window.agentationWS.submitFeedback(
             annotations,
             additionalContext,
@@ -1365,6 +1372,12 @@
         <label class="agentation-settings-checkbox">
           <input type="checkbox" data-setting="blockInteractions" ${settings.blockInteractions ? "checked" : ""}>
           <span>${t("blockInteractions")}</span>
+        </label>
+      </div>
+      <div class="agentation-settings-group">
+        <label class="agentation-settings-checkbox">
+          <input type="checkbox" data-setting="includePlaywrightHint" ${settings.includePlaywrightHint ? "checked" : ""}>
+          <span>${t("includePlaywrightHint")}</span>
         </label>
       </div>
     `;
