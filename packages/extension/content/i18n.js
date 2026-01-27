@@ -1,0 +1,182 @@
+(function () {
+  "use strict";
+
+  const translations = {
+    en: {
+      // Toolbar titles
+      openAgentation: "Open Agentation",
+      toggleAgentation: "Toggle Agentation",
+      copyToClipboard: "Copy to Clipboard",
+      sendToAI: "Send to AI",
+      toggleMarkers: "Toggle Markers",
+      pauseAnimations: "Pause Animations",
+      clearAll: "Clear All",
+      settings: "Settings",
+      closeToolbar: "Close toolbar",
+
+      // MCP status
+      mcpConnected: "MCP server connected",
+      mcpDisconnected: "MCP server disconnected",
+      mcpConnecting: "Connecting to MCP server...",
+      mcpConnectionFailed: "Cannot connect to MCP server",
+
+      // Annotation modal
+      groupAnnotation: "Group Annotation",
+      elements: "elements",
+      annotationPlaceholder: "Describe the issue or change you want...",
+      groupAnnotationPlaceholder: "Describe the issue or change for these elements...",
+      cancel: "Cancel",
+      add: "Add",
+      addGroupAnnotation: "Add Group Annotation",
+
+      // Annotation detail
+      annotation: "Annotation",
+      delete: "Delete",
+      edit: "Edit",
+      save: "Save",
+      close: "Close",
+      deleteConfirmTitle: "Delete Annotation?",
+      deleteConfirmMessage: "This action cannot be undone.",
+
+      // Send to AI modal
+      sendToAITitle: "Send to AI",
+      annotationsToSend: "annotation(s) will be sent to AI.",
+      additionalContextPlaceholder: "Enter additional context (optional)...",
+      send: "Send",
+      sending: "Sending...",
+      copyInstead: "Copy to Clipboard",
+      group: "Group",
+
+      // AI response
+      aiResponse: "AI Response",
+      copyResponse: "Copy Response",
+
+      // Toast messages
+      noAnnotations: "No annotations to copy",
+      copiedAnnotations: "Copied {count} annotation(s) to clipboard",
+      copyFailed: "Failed to copy",
+      pleasAddFeedback: "Please add feedback first",
+      sentToAI: "Feedback sent to AI",
+      sendFailed: "Send failed: ",
+      responseCopied: "Response copied",
+      annotationUpdated: "Annotation updated",
+
+      // Settings
+      settingsTitle: "Settings",
+      language: "Language",
+      outputDetail: "Output Detail",
+      standard: "Standard",
+      detailed: "Detailed",
+      markerColor: "Marker Color",
+      clearAfterCopy: "Clear after copy",
+      blockInteractions: "Block page interactions",
+
+      // Misc
+      moreElements: "+{count} more elements",
+    },
+
+    ko: {
+      // Toolbar titles
+      openAgentation: "Agentation 열기",
+      toggleAgentation: "Agentation 토글",
+      copyToClipboard: "클립보드에 복사",
+      sendToAI: "AI에게 지시하기",
+      toggleMarkers: "마커 토글",
+      pauseAnimations: "애니메이션 일시정지",
+      clearAll: "전체 삭제",
+      settings: "설정",
+      closeToolbar: "툴바 닫기",
+
+      // MCP status
+      mcpConnected: "MCP 서버 연결됨",
+      mcpDisconnected: "MCP 서버 연결 안됨",
+      mcpConnecting: "MCP 서버에 연결 중...",
+      mcpConnectionFailed: "MCP 서버에 연결할 수 없습니다",
+
+      // Annotation modal
+      groupAnnotation: "그룹 어노테이션",
+      elements: "개 요소",
+      annotationPlaceholder: "문제점이나 변경사항을 설명해주세요...",
+      groupAnnotationPlaceholder: "이 요소들에 대한 문제점이나 변경사항을 설명해주세요...",
+      cancel: "취소",
+      add: "추가",
+      addGroupAnnotation: "그룹 어노테이션 추가",
+
+      // Annotation detail
+      annotation: "어노테이션",
+      delete: "삭제",
+      edit: "편집",
+      save: "저장",
+      close: "닫기",
+      deleteConfirmTitle: "어노테이션을 삭제할까요?",
+      deleteConfirmMessage: "이 작업은 되돌릴 수 없습니다.",
+
+      // Send to AI modal
+      sendToAITitle: "AI에게 지시하기",
+      annotationsToSend: "개의 어노테이션을 AI에게 전송합니다.",
+      additionalContextPlaceholder: "추가 컨텍스트를 입력하세요 (선택사항)...",
+      send: "AI에게 전송",
+      sending: "전송 중...",
+      copyInstead: "클립보드에 복사",
+      group: "그룹",
+
+      // AI response
+      aiResponse: "AI 응답",
+      copyResponse: "응답 복사",
+
+      // Toast messages
+      noAnnotations: "복사할 어노테이션이 없습니다",
+      copiedAnnotations: "{count}개의 어노테이션을 클립보드에 복사했습니다",
+      copyFailed: "복사 실패",
+      pleasAddFeedback: "피드백을 추가해주세요",
+      sentToAI: "AI에게 피드백을 전송했습니다",
+      sendFailed: "전송 실패: ",
+      responseCopied: "응답이 복사되었습니다",
+      annotationUpdated: "어노테이션이 업데이트되었습니다",
+
+      // Settings
+      settingsTitle: "설정",
+      language: "언어",
+      outputDetail: "출력 상세도",
+      standard: "표준",
+      detailed: "상세",
+      markerColor: "마커 색상",
+      clearAfterCopy: "복사 후 삭제",
+      blockInteractions: "페이지 상호작용 차단",
+
+      // Misc
+      moreElements: "+{count}개 더",
+    },
+  };
+
+  let currentLang = "en";
+
+  function t(key, params = {}) {
+    let text = translations[currentLang]?.[key] || translations.en[key] || key;
+    Object.entries(params).forEach(([k, v]) => {
+      text = text.replace(`{${k}}`, v);
+    });
+    return text;
+  }
+
+  function setLanguage(lang) {
+    if (translations[lang]) {
+      currentLang = lang;
+    }
+  }
+
+  function getLanguage() {
+    return currentLang;
+  }
+
+  function getAvailableLanguages() {
+    return Object.keys(translations);
+  }
+
+  window.agentationI18n = {
+    t,
+    setLanguage,
+    getLanguage,
+    getAvailableLanguages,
+  };
+})();

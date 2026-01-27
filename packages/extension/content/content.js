@@ -21,7 +21,10 @@
     markerColor: "#ef4444",
     clearAfterCopy: false,
     blockInteractions: false,
+    language: "en",
   };
+
+  const t = (key, params) => window.agentationI18n?.t(key, params) || key;
 
   function throttle(fn, wait) {
     let lastTime = 0;
@@ -393,10 +396,10 @@
           ${selectorListHtml}
           ${moreCount}
         </div>
-        <textarea class="agentation-modal-textarea" placeholder="Describe the issue or change for these elements..." autofocus></textarea>
+        <textarea class="agentation-modal-textarea" placeholder="${t("groupAnnotationPlaceholder")}" autofocus></textarea>
         <div class="agentation-modal-actions">
-          <button class="agentation-btn agentation-btn-cancel">Cancel</button>
-          <button class="agentation-btn agentation-btn-add">Add Group Annotation</button>
+          <button class="agentation-btn agentation-btn-cancel">${t("cancel")}</button>
+          <button class="agentation-btn agentation-btn-add">${t("addGroupAnnotation")}</button>
         </div>
       </div>
     `;
@@ -528,10 +531,10 @@
     popover.innerHTML = `
       <div class="agentation-popover-arrow"></div>
       <div class="agentation-modal-selector">${selector}</div>
-      <textarea class="agentation-modal-textarea" placeholder="Describe the issue or change you want..." autofocus></textarea>
+      <textarea class="agentation-modal-textarea" placeholder="${t("annotationPlaceholder")}" autofocus></textarea>
       <div class="agentation-modal-actions">
-        <button class="agentation-btn agentation-btn-cancel">Cancel</button>
-        <button class="agentation-btn agentation-btn-add">Add</button>
+        <button class="agentation-btn agentation-btn-cancel">${t("cancel")}</button>
+        <button class="agentation-btn agentation-btn-add">${t("add")}</button>
       </div>
     `;
 
@@ -941,11 +944,11 @@
 
     confirmOverlay.innerHTML = `
       <div class="agentation-modal" style="max-width: 280px; text-align: center;">
-        <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; color: #1e293b;">Delete Annotation?</div>
-        <div style="font-size: 13px; color: #64748b; margin-bottom: 16px;">This action cannot be undone.</div>
+        <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; color: #1e293b;">${t("deleteConfirmTitle")}</div>
+        <div style="font-size: 13px; color: #64748b; margin-bottom: 16px;">${t("deleteConfirmMessage")}</div>
         <div class="agentation-modal-actions" style="justify-content: center;">
-          <button class="agentation-btn agentation-btn-cancel" data-action="cancel">Cancel</button>
-          <button class="agentation-btn" data-action="confirm" style="background: #dc2626; color: white;">Delete</button>
+          <button class="agentation-btn agentation-btn-cancel" data-action="cancel">${t("cancel")}</button>
+          <button class="agentation-btn" data-action="confirm" style="background: #dc2626; color: white;">${t("delete")}</button>
         </div>
       </div>
     `;
@@ -1030,13 +1033,13 @@
   async function copyToClipboard() {
     const md = generateMarkdown();
     if (!md) {
-      showToast("No annotations to copy");
+      showToast(t("noAnnotations"));
       return;
     }
 
     try {
       await navigator.clipboard.writeText(md);
-      showToast(`Copied ${annotations.length} annotation(s) to clipboard`);
+      showToast(t("copiedAnnotations", { count: annotations.length }));
 
       if (settings.clearAfterCopy) {
         annotations = [];
@@ -1047,7 +1050,7 @@
           .forEach((m) => m.remove());
       }
     } catch (err) {
-      showToast("Failed to copy");
+      showToast(t("copyFailed"));
     }
   }
 
@@ -1063,8 +1066,8 @@
       statusIndicator.style.display = "block";
       statusIndicator.style.background = connected ? "#22c55e" : "#ef4444";
       statusIndicator.title = connected
-        ? "MCP 서버 연결됨"
-        : "MCP 서버 연결 안됨";
+        ? t("mcpConnected")
+        : t("mcpDisconnected");
     }
 
     if (aiBtn) {
@@ -1102,16 +1105,16 @@
 
   async function sendToAI() {
     if (annotations.length === 0) {
-      showToast("피드백을 추가해주세요");
+      showToast(t("pleasAddFeedback"));
       return;
     }
 
     if (!mcpConnected && window.agentationWS) {
-      showToast("MCP 서버에 연결 중...");
+      showToast(t("mcpConnecting"));
       try {
         await connectToMCP();
       } catch (error) {
-        showToast("MCP 서버에 연결할 수 없습니다");
+        showToast(t("mcpConnectionFailed"));
         return;
       }
     }
@@ -1124,26 +1127,26 @@
     overlay.className = "agentation-modal-overlay";
 
     const connectionStatus = mcpConnected
-      ? '<span style="color: #22c55e;">● MCP 서버 연결됨</span>'
-      : '<span style="color: #ef4444;">● MCP 서버 연결 안됨</span>';
+      ? `<span style="color: #22c55e;">● ${t("mcpConnected")}</span>`
+      : `<span style="color: #ef4444;">● ${t("mcpDisconnected")}</span>`;
 
     overlay.innerHTML = `
       <div class="agentation-modal" style="max-width: 450px;">
         <div class="agentation-modal-header">
-          <h3 class="agentation-modal-title">AI에게 지시하기</h3>
+          <h3 class="agentation-modal-title">${t("sendToAITitle")}</h3>
         </div>
         <div style="margin-bottom: 16px;">
           <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">
             ${connectionStatus}
           </div>
           <div style="font-size: 14px; margin-bottom: 12px; color: #1e293b;">
-            <strong>${annotations.length}개</strong>의 어노테이션을 AI에게 전송합니다.
+            <strong>${annotations.length}</strong> ${t("annotationsToSend")}
           </div>
           <div style="max-height: 150px; overflow-y: auto; background: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
             ${annotations
               .map((a, i) => {
                 const desc = a.isGroup
-                  ? `그룹 (${a.selectors.length}개 요소)`
+                  ? `${t("group")} (${a.selectors.length} ${t("elements")})`
                   : a.description;
                 return `<div style="font-size: 12px; padding: 4px 0; border-bottom: 1px solid #e2e8f0; color: #1e293b;">
                 <strong>${i + 1}.</strong> ${desc}
@@ -1152,14 +1155,14 @@
               })
               .join("")}
           </div>
-          <textarea class="agentation-modal-textarea" placeholder="추가 컨텍스트를 입력하세요 (선택사항)..." style="min-height: 60px;"></textarea>
+          <textarea class="agentation-modal-textarea" placeholder="${t("additionalContextPlaceholder")}" style="min-height: 60px;"></textarea>
         </div>
         <div class="agentation-modal-actions">
-          <button class="agentation-btn agentation-btn-cancel" data-action="cancel">취소</button>
+          <button class="agentation-btn agentation-btn-cancel" data-action="cancel">${t("cancel")}</button>
           ${
             mcpConnected
-              ? '<button class="agentation-btn agentation-btn-add" data-action="send">AI에게 전송</button>'
-              : '<button class="agentation-btn" data-action="copy-instead" style="background: #3b82f6; color: white;">클립보드에 복사</button>'
+              ? `<button class="agentation-btn agentation-btn-add" data-action="send">${t("send")}</button>`
+              : `<button class="agentation-btn" data-action="copy-instead" style="background: #3b82f6; color: white;">${t("copyInstead")}</button>`
           }
         </div>
       </div>
@@ -1184,7 +1187,7 @@
     if (sendBtn) {
       sendBtn.addEventListener("click", async () => {
         sendBtn.disabled = true;
-        sendBtn.textContent = "전송 중...";
+        sendBtn.textContent = t("sending");
 
         try {
           const additionalContext = textarea.value.trim();
@@ -1194,7 +1197,7 @@
           );
 
           closeModal();
-          showToast("AI에게 피드백을 전송했습니다");
+          showToast(t("sentToAI"));
 
           if (response) {
             showAIResponseModal(response);
@@ -1209,9 +1212,9 @@
               .forEach((m) => m.remove());
           }
         } catch (error) {
-          showToast("전송 실패: " + error.message);
+          showToast(t("sendFailed") + error.message);
           sendBtn.disabled = false;
-          sendBtn.textContent = "AI에게 전송";
+          sendBtn.textContent = t("send");
         }
       });
     }
@@ -1231,14 +1234,14 @@
     overlay.innerHTML = `
       <div class="agentation-modal" style="max-width: 600px; max-height: 80vh;">
         <div class="agentation-modal-header">
-          <h3 class="agentation-modal-title">AI 응답</h3>
+          <h3 class="agentation-modal-title">${t("aiResponse")}</h3>
         </div>
         <div style="max-height: 60vh; overflow-y: auto; background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 16px; white-space: pre-wrap; font-family: monospace; font-size: 13px; line-height: 1.5; color: #1e293b;">
           ${escapeHtml(response)}
         </div>
         <div class="agentation-modal-actions">
-          <button class="agentation-btn agentation-btn-cancel" data-action="copy-response" style="background: #dbeafe; color: #2563eb;">응답 복사</button>
-          <button class="agentation-btn agentation-btn-add" data-action="close">닫기</button>
+          <button class="agentation-btn agentation-btn-cancel" data-action="copy-response" style="background: #dbeafe; color: #2563eb;">${t("copyResponse")}</button>
+          <button class="agentation-btn agentation-btn-add" data-action="close">${t("close")}</button>
         </div>
       </div>
     `;
@@ -1260,9 +1263,9 @@
     copyResponseBtn.addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(response);
-        showToast("응답이 복사되었습니다");
+        showToast(t("responseCopied"));
       } catch (err) {
-        showToast("복사 실패");
+        showToast(t("copyFailed"));
       }
     });
   }
@@ -1326,17 +1329,24 @@
 
     panel.innerHTML = `
       <div class="agentation-settings-header">
-        <span class="agentation-settings-title">Settings</span>
+        <span class="agentation-settings-title">${t("settingsTitle")}</span>
       </div>
       <div class="agentation-settings-group">
-        <label class="agentation-settings-label">Output Detail</label>
-        <select class="agentation-settings-select" data-setting="outputDetail">
-          <option value="standard" ${settings.outputDetail === "standard" ? "selected" : ""}>Standard</option>
-          <option value="detailed" ${settings.outputDetail === "detailed" ? "selected" : ""}>Detailed</option>
+        <label class="agentation-settings-label">${t("language")}</label>
+        <select class="agentation-settings-select" data-setting="language">
+          <option value="en" ${settings.language === "en" ? "selected" : ""}>English</option>
+          <option value="ko" ${settings.language === "ko" ? "selected" : ""}>한국어</option>
         </select>
       </div>
       <div class="agentation-settings-group">
-        <label class="agentation-settings-label">Marker Color</label>
+        <label class="agentation-settings-label">${t("outputDetail")}</label>
+        <select class="agentation-settings-select" data-setting="outputDetail">
+          <option value="standard" ${settings.outputDetail === "standard" ? "selected" : ""}>${t("standard")}</option>
+          <option value="detailed" ${settings.outputDetail === "detailed" ? "selected" : ""}>${t("detailed")}</option>
+        </select>
+      </div>
+      <div class="agentation-settings-group">
+        <label class="agentation-settings-label">${t("markerColor")}</label>
         <div class="agentation-color-options">
           <button class="agentation-color-btn ${settings.markerColor === "#ef4444" ? "active" : ""}" data-color="#ef4444" style="background: #ef4444;"></button>
           <button class="agentation-color-btn ${settings.markerColor === "#f97316" ? "active" : ""}" data-color="#f97316" style="background: #f97316;"></button>
@@ -1349,13 +1359,13 @@
       <div class="agentation-settings-group">
         <label class="agentation-settings-checkbox">
           <input type="checkbox" data-setting="clearAfterCopy" ${settings.clearAfterCopy ? "checked" : ""}>
-          <span>Clear after copy</span>
+          <span>${t("clearAfterCopy")}</span>
         </label>
       </div>
       <div class="agentation-settings-group">
         <label class="agentation-settings-checkbox">
           <input type="checkbox" data-setting="blockInteractions" ${settings.blockInteractions ? "checked" : ""}>
-          <span>Block page interactions</span>
+          <span>${t("blockInteractions")}</span>
         </label>
       </div>
     `;
@@ -1365,12 +1375,19 @@
 
     document.body.appendChild(panel);
 
-    panel
-      .querySelector(".agentation-settings-select")
-      .addEventListener("change", (e) => {
-        settings.outputDetail = e.target.value;
+    panel.querySelectorAll(".agentation-settings-select").forEach((select) => {
+      select.addEventListener("change", (e) => {
+        const setting = e.target.dataset.setting;
+        settings[setting] = e.target.value;
+
+        if (setting === "language") {
+          window.agentationI18n?.setLanguage(e.target.value);
+          updateToolbarTitles();
+        }
+
         saveSettings();
       });
+    });
 
     panel.querySelectorAll(".agentation-color-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -1427,6 +1444,33 @@
       if (response?.settings) {
         settings = { ...settings, ...response.settings };
         applyMarkerColor();
+        if (settings.language) {
+          window.agentationI18n?.setLanguage(settings.language);
+          updateToolbarTitles();
+        }
+      }
+    });
+  }
+
+  function updateToolbarTitles() {
+    if (!toolbar) return;
+
+    const titleMap = {
+      expand: "openAgentation",
+      toggle: "toggleAgentation",
+      copy: "copyToClipboard",
+      "send-to-ai": "sendToAI",
+      visibility: "toggleMarkers",
+      pause: "pauseAnimations",
+      clear: "clearAll",
+      settings: "settings",
+      collapse: "closeToolbar",
+    };
+
+    Object.entries(titleMap).forEach(([action, key]) => {
+      const btn = toolbar.querySelector(`[data-action="${action}"]`);
+      if (btn) {
+        btn.title = t(key);
       }
     });
   }
@@ -1436,27 +1480,27 @@
     toolbar.className = "agentation-toolbar collapsed";
 
     toolbar.innerHTML = `
-      <button class="agentation-toolbar-btn agentation-expand-btn" data-action="expand" title="Open Agentation">
+      <button class="agentation-toolbar-btn agentation-expand-btn" data-action="expand">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
           <path d="M12 8v4M12 16h.01"/>
         </svg>
       </button>
       <div class="agentation-toolbar-buttons">
-        <button class="agentation-toolbar-btn" data-action="toggle" title="Toggle Agentation">
+        <button class="agentation-toolbar-btn" data-action="toggle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
             <path d="M12 8v4l2 2"/>
           </svg>
         </button>
-        <button class="agentation-toolbar-btn" data-action="copy" title="Copy to Clipboard" style="position: relative;">
+        <button class="agentation-toolbar-btn" data-action="copy" style="position: relative;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="9" y="9" width="13" height="13" rx="2"/>
             <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
           </svg>
           <span class="agentation-toolbar-badge" style="display: none;">0</span>
         </button>
-        <button class="agentation-toolbar-btn agentation-ai-btn" data-action="send-to-ai" title="AI에게 지시하기" style="position: relative;">
+        <button class="agentation-toolbar-btn agentation-ai-btn" data-action="send-to-ai" style="position: relative;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2L2 7l10 5 10-5-10-5z"/>
             <path d="M2 17l10 5 10-5"/>
@@ -1464,32 +1508,32 @@
           </svg>
           <span class="agentation-mcp-status" style="display: none;"></span>
         </button>
-        <button class="agentation-toolbar-btn" data-action="visibility" title="Toggle Markers">
+        <button class="agentation-toolbar-btn" data-action="visibility">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
             <circle cx="12" cy="12" r="3"/>
           </svg>
         </button>
-        <button class="agentation-toolbar-btn" data-action="pause" title="Pause Animations">
+        <button class="agentation-toolbar-btn" data-action="pause">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="6" y="4" width="4" height="16"/>
             <rect x="14" y="4" width="4" height="16"/>
           </svg>
         </button>
-        <button class="agentation-toolbar-btn" data-action="clear" title="Clear All">
+        <button class="agentation-toolbar-btn" data-action="clear">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 6h18"/>
             <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
             <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
           </svg>
         </button>
-        <button class="agentation-toolbar-btn" data-action="settings" title="Settings">
+        <button class="agentation-toolbar-btn" data-action="settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
             <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
           </svg>
         </button>
-        <button class="agentation-toolbar-btn" data-action="collapse" title="Close toolbar">
+        <button class="agentation-toolbar-btn" data-action="collapse">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
@@ -1774,6 +1818,7 @@
 
   function init() {
     toolbar = createToolbar();
+    updateToolbarTitles();
     updateToolbarButtons();
 
     document.addEventListener("mouseover", onMouseOver, true);
