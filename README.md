@@ -137,28 +137,19 @@ pwd  # Example output: /Users/yourname/agentation
 
 </details>
 
-### Start OpenCode
+### Start
 
 ```bash
-cd external/opencode/packages/opencode
-
-# macOS
-./dist/opencode-darwin-arm64/bin/opencode    # Apple Silicon (M1/M2)
-./dist/opencode-darwin-x64/bin/opencode      # Intel (build from source)
-
-# Linux
-./dist/opencode-linux-arm64/bin/opencode     # ARM
-./dist/opencode-linux-x64/bin/opencode       # x64
-
-# Windows (PowerShell)
-.\dist\opencode-windows-x64\bin\opencode.exe
+agentation
 ```
+
+> **Windows:** Run `external\opencode\packages\opencode\dist\opencode-windows-x64\bin\opencode.exe`
 
 ## Usage
 
-> **Important:** OpenCode must be running before using the extension.
+> **Important:** Agentation must be running before using the extension.
 
-1. **Start OpenCode** (Step 6 above)
+1. **Start Agentation**
 2. **Open any webpage** in Chrome
 3. **Find Agentation toolbar** (floating button, bottom-right corner)
 4. **Enable annotation mode** (click the toggle icon)

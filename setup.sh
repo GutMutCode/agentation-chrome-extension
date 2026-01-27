@@ -344,22 +344,42 @@ EOF
     print_success "Created config: $CONFIG_FILE"
 }
 
+# Create symlink for easy access
+create_symlink() {
+    local platform="$1"
+    local bin_dir="$HOME/.local/bin"
+    local source_bin="$OPENCODE_DIR/dist/opencode-$platform/bin/opencode"
+    local target_bin="$bin_dir/agentation"
+
+    if [[ "$platform" == "windows-x64" ]]; then
+        print_warning "Symlink creation skipped on Windows. Add to PATH manually."
+        return
+    fi
+
+    print_step "Creating symlink..."
+
+    mkdir -p "$bin_dir"
+
+    if [[ -L "$target_bin" || -e "$target_bin" ]]; then
+        rm -f "$target_bin"
+    fi
+
+    ln -sf "$source_bin" "$target_bin"
+    print_success "Created: $target_bin -> $source_bin"
+
+    if [[ ":$PATH:" != *":$bin_dir:"* ]]; then
+        echo ""
+        print_warning "~/.local/bin is not in PATH"
+        echo "  Add to your shell config (~/.bashrc, ~/.zshrc, etc.):"
+        echo ""
+        echo "    export PATH=\"\$HOME/.local/bin:\$PATH\""
+        echo ""
+    fi
+}
+
 # Print final instructions
 print_instructions() {
     local platform="$1"
-    local binary_path
-
-    case "$platform" in
-        darwin-arm64|darwin-x64)
-            binary_path="./dist/opencode-${platform}/bin/opencode"
-            ;;
-        linux-arm64|linux-x64)
-            binary_path="./dist/opencode-${platform}/bin/opencode"
-            ;;
-        windows-x64)
-            binary_path=".\\dist\\opencode-${platform}\\bin\\opencode.exe"
-            ;;
-    esac
 
     echo ""
     echo -e "${GREEN}============================================${NC}"
@@ -373,11 +393,18 @@ print_instructions() {
     echo "  3. Click 'Load unpacked'"
     echo "  4. Select: $SCRIPT_DIR/packages/extension"
     echo ""
-    echo -e "${YELLOW}To start OpenCode:${NC}"
-    echo ""
-    echo "  cd $OPENCODE_DIR"
-    echo "  $binary_path"
-    echo ""
+
+    if [[ "$platform" == "windows-x64" ]]; then
+        echo -e "${YELLOW}To start:${NC}"
+        echo ""
+        echo "  $OPENCODE_DIR\\dist\\opencode-${platform}\\bin\\opencode.exe"
+        echo ""
+    else
+        echo -e "${YELLOW}To start:${NC}"
+        echo ""
+        echo "  agentation"
+        echo ""
+    fi
     echo -e "${YELLOW}Usage:${NC}"
     echo ""
     echo "  1. Start OpenCode first"
@@ -414,6 +441,7 @@ main() {
     fi
 
     configure_opencode
+    create_symlink "$platform"
     print_instructions "$platform"
 }
 
