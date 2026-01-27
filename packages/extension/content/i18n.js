@@ -73,6 +73,12 @@
 
       // Misc
       moreElements: "+{count} more elements",
+
+      // Annotation list modal
+      noAnnotationsToManage: "No annotations to manage",
+      annotations: "Annotations",
+      clearAllAnnotations: "Clear All",
+      allAnnotationsCleared: "All annotations cleared",
     },
 
     ko: {
@@ -146,6 +152,12 @@
 
       // Misc
       moreElements: "+{count}개 더",
+
+      // Annotation list modal
+      noAnnotationsToManage: "관리할 어노테이션이 없습니다",
+      annotations: "어노테이션",
+      clearAllAnnotations: "모두 삭제",
+      allAnnotationsCleared: "모든 어노테이션이 삭제되었습니다",
     },
   };
 

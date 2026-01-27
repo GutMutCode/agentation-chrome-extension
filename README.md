@@ -5,6 +5,27 @@ AI-powered UI feedback system. Annotate webpage elements and send feedback direc
 > **Inspired by [benjitaylor/agentation](https://github.com/benjitaylor/agentation)** — the original visual feedback tool for AI agents.
 > See [my proposal](https://github.com/benjitaylor/agentation/issues/26) for a Chrome Extension version.
 
+## 💡 Quick Start: Extension Only
+
+> **No setup required for basic usage!**
+>
+> The Chrome Extension works **standalone** — just load it and use **Copy to Clipboard**.
+> Paste into ChatGPT, Claude, or any AI chat.
+>
+> MCP setup is only needed for **Send to AI** (direct OpenCode integration).
+
+| Feature | Extension Only | With MCP Setup |
+|---------|----------------|----------------|
+| Annotate elements | ✅ | ✅ |
+| Copy to Clipboard | ✅ | ✅ |
+| Send to AI (direct) | ❌ | ✅ |
+
+**Extension-only install:**
+```bash
+git clone https://github.com/GutMutCode/agentation.git
+# Then: chrome://extensions/ → Developer mode → Load unpacked → packages/extension
+```
+
 ## Why This Fork?
 
 | | [Original](https://github.com/benjitaylor/agentation) | This Project |
