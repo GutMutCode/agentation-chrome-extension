@@ -241,6 +241,40 @@ agentation
 
 Chrome Extension은 수동 제거: `chrome://extensions/` → Agentation 찾기 → 삭제
 
+## 권장: Playwriter와 함께 사용
+
+최상의 경험을 위해 [Playwriter](https://github.com/remorses/playwriter)와 함께 사용하세요 — 기존 Chrome을 제어하는 브라우저 자동화 MCP입니다.
+
+| 도구 | 역할 |
+|------|------|
+| **Agentation** | UI 요소 어노테이션 → AI에게 피드백 전송 |
+| **Playwriter** | AI가 브라우저 제어 → 테스트, 검증, 상호작용 |
+
+### 왜 Playwriter인가?
+
+| 기능 | Playwright MCP | Playwriter |
+|------|----------------|------------|
+| 브라우저 | 새 Chrome 실행 | 기존 Chrome 사용 |
+| 로그인 상태 | 새로 (로그아웃됨) | 이미 로그인됨 |
+| 확장 프로그램 | 없음 | 기존 것 사용 |
+| 봇 탐지 | 항상 탐지됨 | 우회 가능 |
+| 컨텍스트 사용량 | 스크린샷 (100KB+) | A11y 스냅샷 (5-20KB) |
+
+### 설정
+
+1. [Playwriter Chrome Extension](https://chromewebstore.google.com/detail/playwriter-mcp/jfeammnjpkecdekppnclgkkffahnhfhe) 설치
+2. 탭에서 확장 프로그램 아이콘 클릭 (연결되면 녹색으로 변함)
+3. MCP 설정에 추가하거나 CLI 사용: `npm i -g playwriter`
+
+### 워크플로우 예시
+
+```
+1. 웹사이트 탐색 → UI 문제 발견
+2. Agentation으로 문제 어노테이션
+3. "AI에게 전송" 클릭 → AI가 시각적 피드백 수신
+4. AI가 Playwriter로 페이지와 상호작용하여 수정/검증
+```
+
 ## 개발
 
 ```bash

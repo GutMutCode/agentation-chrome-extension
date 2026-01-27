@@ -241,6 +241,40 @@ agentation
 
 Then manually remove Chrome extension: `chrome://extensions/` → Find Agentation → Remove
 
+## Recommended: Use with Playwriter
+
+For the best experience, use Agentation together with [Playwriter](https://github.com/remorses/playwriter) — a browser automation MCP that controls your existing Chrome.
+
+| Tool | Role |
+|------|------|
+| **Agentation** | Annotate UI elements → Send feedback to AI |
+| **Playwriter** | AI controls browser → Test, verify, interact |
+
+### Why Playwriter?
+
+| Feature | Playwright MCP | Playwriter |
+|---------|----------------|------------|
+| Browser | Spawns new Chrome | Uses your Chrome |
+| Login state | Fresh (logged out) | Already logged in |
+| Extensions | None | Your existing ones |
+| Bot detection | Always detected | Can bypass |
+| Context usage | Screenshots (100KB+) | A11y snapshots (5-20KB) |
+
+### Setup
+
+1. Install [Playwriter Chrome Extension](https://chromewebstore.google.com/detail/playwriter-mcp/jfeammnjpkecdekppnclgkkffahnhfhe)
+2. Click extension icon on a tab (turns green when connected)
+3. Add to your MCP config or use CLI: `npm i -g playwriter`
+
+### Workflow Example
+
+```
+1. Browse website → spot UI issue
+2. Use Agentation to annotate the problem
+3. Click "Send to AI" → AI receives visual feedback
+4. AI uses Playwriter to interact with the page and fix/verify
+```
+
 ## Development
 
 ```bash
