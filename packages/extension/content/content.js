@@ -378,7 +378,7 @@
       .slice(0, 5)
       .map(
         (sel, i) =>
-          `<div style="font-size: 11px; padding: 4px 8px; background: rgba(255,255,255,0.5); border-radius: 4px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${descriptions[i]}</div>`,
+          `<div style="font-size: 11px; padding: 4px 8px; background: rgba(255,255,255,0.5); border-radius: 4px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1e293b;">${descriptions[i]}</div>`,
       )
       .join("");
 
