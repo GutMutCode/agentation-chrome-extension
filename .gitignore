@@ -16,6 +16,9 @@ dist/
 # Build artifacts
 *.tsbuildinfo
 
+# Downloaded OpenCode binary
+.opencode/
+
 # Package manager
 pnpm-lock.yaml
 package-lock.json

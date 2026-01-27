@@ -10,7 +10,8 @@ NC='\033[0m' # No Color
 
 # Script directory (agentation root)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OPENCODE_DIR="$SCRIPT_DIR/external/opencode/packages/opencode"
+OPENCODE_SUBMODULE_DIR="$SCRIPT_DIR/external/opencode/packages/opencode"
+OPENCODE_BIN_DIR="$SCRIPT_DIR/.opencode"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 CONFIG_FILE="$CONFIG_DIR/opencode.json"
 
@@ -18,6 +19,7 @@ CONFIG_FILE="$CONFIG_DIR/opencode.json"
 BUILD_FROM_SOURCE=false
 SKIP_BUILD=false
 FORCE=false
+PKG_MANAGER=""
 
 print_step() {
     echo -e "\n${BLUE}==>${NC} ${1}"
@@ -137,10 +139,14 @@ check_dependencies() {
         print_success "Node.js $(node -v)"
     fi
 
-    if ! command -v pnpm &> /dev/null; then
-        missing+=("pnpm")
-    else
+    if command -v pnpm &> /dev/null; then
+        PKG_MANAGER="pnpm"
         print_success "pnpm $(pnpm -v)"
+    elif command -v npm &> /dev/null; then
+        PKG_MANAGER="npm"
+        print_success "npm $(npm -v)"
+    else
+        missing+=("npm or pnpm")
     fi
 
     if [[ "$BUILD_FROM_SOURCE" == true ]]; then
@@ -160,8 +166,9 @@ check_dependencies() {
                 node)
                     echo "  Node.js: https://nodejs.org/ or use nvm"
                     ;;
-                pnpm)
-                    echo "  pnpm: npm install -g pnpm"
+                "npm or pnpm")
+                    echo "  npm: comes with Node.js"
+                    echo "  pnpm (recommended): npm install -g pnpm"
                     ;;
                 bun)
                     echo "  bun: curl -fsSL https://bun.sh/install | bash"
@@ -193,12 +200,16 @@ build_agentation() {
     cd "$SCRIPT_DIR"
 
     if [[ ! -d "node_modules" ]]; then
-        echo "Installing dependencies..."
-        pnpm install
+        echo "Installing dependencies with $PKG_MANAGER..."
+        $PKG_MANAGER install
     fi
 
     echo "Building packages..."
-    pnpm build
+    if [[ "$PKG_MANAGER" == "npm" ]]; then
+        npm run build
+    else
+        pnpm build
+    fi
 
     print_success "Agentation built successfully"
 }
@@ -207,8 +218,7 @@ build_agentation() {
 download_opencode() {
     local platform="$1"
     local release_url="https://github.com/GutMutCode/opencode/releases/latest/download"
-    local dist_dir="$OPENCODE_DIR/dist"
-    local binary_dir="$dist_dir/opencode-$platform"
+    local binary_dir="$OPENCODE_BIN_DIR/opencode-$platform"
 
     if [[ -d "$binary_dir" && "$FORCE" != true ]]; then
         print_step "OpenCode binary already exists"
@@ -219,7 +229,7 @@ download_opencode() {
 
     print_step "Downloading OpenCode binary for $platform..."
 
-    mkdir -p "$dist_dir"
+    mkdir -p "$OPENCODE_BIN_DIR"
 
     local archive_name
     local extract_cmd
@@ -233,7 +243,7 @@ download_opencode() {
     fi
 
     local download_url="${release_url}/${archive_name}"
-    local archive_path="${dist_dir}/${archive_name}"
+    local archive_path="${OPENCODE_BIN_DIR}/${archive_name}"
 
     echo "Downloading from: $download_url"
 
@@ -247,17 +257,28 @@ download_opencode() {
     fi
 
     echo "Extracting..."
-    cd "$dist_dir"
+    cd "$OPENCODE_BIN_DIR"
     $extract_cmd "$archive_name"
     rm "$archive_name"
 
-    print_success "OpenCode binary installed to $dist_dir/opencode-$platform"
+    print_success "OpenCode binary installed to $binary_dir"
 }
 
 # Build OpenCode from source
 build_opencode() {
     local platform="$1"
-    local binary_dir="$OPENCODE_DIR/dist/opencode-$platform"
+    local binary_dir="$OPENCODE_SUBMODULE_DIR/dist/opencode-$platform"
+
+    if [[ ! -d "$OPENCODE_SUBMODULE_DIR" ]]; then
+        print_error "OpenCode submodule not found at: $OPENCODE_SUBMODULE_DIR"
+        echo ""
+        echo "To build from source, clone with --recursive:"
+        echo "  git clone --recursive https://github.com/GutMutCode/agentation.git"
+        echo ""
+        echo "Or initialize submodule:"
+        echo "  git submodule update --init --recursive"
+        exit 1
+    fi
 
     if [[ -d "$binary_dir" && "$FORCE" != true ]]; then
         print_step "OpenCode already built"
@@ -268,7 +289,7 @@ build_opencode() {
 
     print_step "Building OpenCode from source..."
 
-    cd "$OPENCODE_DIR"
+    cd "$OPENCODE_SUBMODULE_DIR"
 
     if [[ ! -d "node_modules" ]]; then
         echo "Installing dependencies..."
@@ -348,11 +369,19 @@ EOF
 create_symlink() {
     local platform="$1"
     local bin_dir="$HOME/.local/bin"
+    local source_bin
 
     mkdir -p "$bin_dir"
 
+    # Determine source binary path based on build type
+    if [[ "$BUILD_FROM_SOURCE" == true ]]; then
+        source_bin="$OPENCODE_SUBMODULE_DIR/dist/opencode-$platform/bin/opencode"
+    else
+        source_bin="$OPENCODE_BIN_DIR/opencode-$platform/bin/opencode"
+    fi
+
     if [[ "$platform" == "windows-x64" ]]; then
-        local source_bin="$OPENCODE_DIR/dist/opencode-$platform/bin/opencode.exe"
+        source_bin="${source_bin}.exe"
         local target_cmd="$bin_dir/agentation.cmd"
 
         print_step "Creating batch script..."
@@ -377,7 +406,6 @@ EOF
         return
     fi
 
-    local source_bin="$OPENCODE_DIR/dist/opencode-$platform/bin/opencode"
     local target_bin="$bin_dir/agentation"
 
     print_step "Creating symlink..."
