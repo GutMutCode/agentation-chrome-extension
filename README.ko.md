@@ -68,11 +68,13 @@ git clone --recursive https://github.com/GutMutCode/agentation.git && cd agentat
 ## 사전 요구사항
 
 - **Node.js** 20+
-- **pnpm** (`npm install -g pnpm`)
+- **pnpm** 또는 **npm** (pnpm 권장: `npm install -g pnpm`)
 - **Chrome** 브라우저
 - **bun** - OpenCode를 소스에서 빌드할 때만 필요 (`curl -fsSL https://bun.sh/install | bash`)
 
 > **참고:** Windows 지원은 실험적입니다. macOS와 Linux는 완전히 지원됩니다.
+>
+> **패키지 매니저:** 예제는 `pnpm`을 사용하지만 `npm`도 작동합니다. 명령어에서 `pnpm`을 `npm`으로 대체하세요.
 
 ## 설정 옵션
 

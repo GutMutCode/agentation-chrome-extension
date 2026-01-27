@@ -4,6 +4,9 @@
   "private": true,
   "description": "AI-powered UI feedback system with MCP sampling support",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",

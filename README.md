@@ -68,11 +68,13 @@ Then load Chrome extension: `chrome://extensions/` → Developer mode → Load u
 ## Prerequisites
 
 - **Node.js** 20+
-- **pnpm** (`npm install -g pnpm`)
+- **pnpm** or **npm** (pnpm recommended: `npm install -g pnpm`)
 - **Chrome** browser
 - **bun** - Only if building OpenCode from source (`curl -fsSL https://bun.sh/install | bash`)
 
 > **Note:** Windows support is experimental. macOS and Linux are fully supported.
+>
+> **Package Manager:** Examples use `pnpm`, but `npm` works too. Replace `pnpm` with `npm` in commands.
 
 ## Setup Options
 

@@ -27,7 +27,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@agentation/shared": "workspace:*",
+    "@agentation/shared": "file:../shared",
     "@types/ws": "^8.5.0",
     "typescript": "^5.7.0"
   }
