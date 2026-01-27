@@ -26,8 +26,8 @@ AI-powered UI feedback system. Annotate webpage elements and send feedback direc
 
 - **Node.js** 20+
 - **pnpm** (`npm install -g pnpm`)
-- **bun** (`curl -fsSL https://bun.sh/install | bash`)
 - **Chrome** browser
+- **bun** - Only if building OpenCode from source (`curl -fsSL https://bun.sh/install | bash`)
 
 > **Note:** Windows support is experimental. macOS and Linux are fully supported.
 
