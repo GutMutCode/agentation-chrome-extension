@@ -143,7 +143,7 @@ pwd  # Example output: /Users/yourname/agentation
 agentation
 ```
 
-> **Windows:** Run `external\opencode\packages\opencode\dist\opencode-windows-x64\bin\opencode.exe`
+> **Note:** If `agentation` is not found, add `~/.local/bin` to your PATH (setup.sh shows instructions).
 
 ## Usage
 

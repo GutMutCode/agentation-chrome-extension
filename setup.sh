@@ -344,21 +344,43 @@ EOF
     print_success "Created config: $CONFIG_FILE"
 }
 
-# Create symlink for easy access
+# Create symlink or batch script for easy access
 create_symlink() {
     local platform="$1"
     local bin_dir="$HOME/.local/bin"
-    local source_bin="$OPENCODE_DIR/dist/opencode-$platform/bin/opencode"
-    local target_bin="$bin_dir/agentation"
+
+    mkdir -p "$bin_dir"
 
     if [[ "$platform" == "windows-x64" ]]; then
-        print_warning "Symlink creation skipped on Windows. Add to PATH manually."
+        local source_bin="$OPENCODE_DIR/dist/opencode-$platform/bin/opencode.exe"
+        local target_cmd="$bin_dir/agentation.cmd"
+
+        print_step "Creating batch script..."
+
+        cat > "$target_cmd" <<EOF
+@echo off
+"$source_bin" %*
+EOF
+
+        print_success "Created: $target_cmd"
+
+        local win_bin_dir
+        win_bin_dir=$(cygpath -w "$bin_dir" 2>/dev/null || echo "$bin_dir")
+
+        echo ""
+        print_warning "Add to PATH (run in PowerShell as Admin):"
+        echo ""
+        echo "  [Environment]::SetEnvironmentVariable('Path', \$env:Path + ';$win_bin_dir', 'User')"
+        echo ""
+        echo "  Or manually: Settings → System → About → Advanced → Environment Variables"
+        echo ""
         return
     fi
 
-    print_step "Creating symlink..."
+    local source_bin="$OPENCODE_DIR/dist/opencode-$platform/bin/opencode"
+    local target_bin="$bin_dir/agentation"
 
-    mkdir -p "$bin_dir"
+    print_step "Creating symlink..."
 
     if [[ -L "$target_bin" || -e "$target_bin" ]]; then
         rm -f "$target_bin"
@@ -394,17 +416,10 @@ print_instructions() {
     echo "  4. Select: $SCRIPT_DIR/packages/extension"
     echo ""
 
-    if [[ "$platform" == "windows-x64" ]]; then
-        echo -e "${YELLOW}To start:${NC}"
-        echo ""
-        echo "  $OPENCODE_DIR\\dist\\opencode-${platform}\\bin\\opencode.exe"
-        echo ""
-    else
-        echo -e "${YELLOW}To start:${NC}"
-        echo ""
-        echo "  agentation"
-        echo ""
-    fi
+    echo -e "${YELLOW}To start:${NC}"
+    echo ""
+    echo "  agentation"
+    echo ""
     echo -e "${YELLOW}Usage:${NC}"
     echo ""
     echo "  1. Start OpenCode first"
