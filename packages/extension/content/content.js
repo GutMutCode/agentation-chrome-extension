@@ -1878,8 +1878,6 @@
 
     loadAnnotations();
     loadSettings();
-
-    setTimeout(() => connectToMCP(true), 1000);
   }
 
   if (document.readyState === "loading") {
