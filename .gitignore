@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.turbo/
+*.log
+.DS_Store
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build artifacts
+*.tsbuildinfo
+
+# Package manager
+pnpm-lock.yaml
+package-lock.json
+yarn.lock

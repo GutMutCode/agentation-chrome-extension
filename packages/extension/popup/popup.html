@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #ffffff;
+    }
+    
+    .header {
+      padding: 16px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      color: white;
+    }
+    
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .header p {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+    
+    .actions {
+      padding: 12px 16px;
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .btn {
+      flex: 1;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    
+    .btn-primary {
+      background: #3b82f6;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #2563eb;
+    }
+    
+    .btn-primary.active {
+      background: #16a34a;
+    }
+    
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #475569;
+    }
+    
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+    
+    .btn svg {
+      width: 16px;
+      height: 16px;
+    }
+    
+    .annotations-header {
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+    }
+    
+    .annotations-header h2 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #475569;
+    }
+    
+    .annotations-count {
+      background: #3b82f6;
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    
+    .annotations-list {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .annotation-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    
+    .annotation-item:hover {
+      background: #f8fafc;
+    }
+    
+    .annotation-item:last-child {
+      border-bottom: none;
+    }
+    
+    .annotation-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: #ef4444;
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    
+    .annotation-description {
+      font-size: 13px;
+      color: #1e293b;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    
+    .annotation-selector {
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      color: #64748b;
+      word-break: break-all;
+      margin-bottom: 6px;
+    }
+    
+    .annotation-feedback {
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.4;
+    }
+    
+    .annotation-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    
+    .annotation-action-btn {
+      padding: 4px 10px;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    
+    .annotation-action-btn.edit {
+      background: #dbeafe;
+      color: #2563eb;
+    }
+    
+    .annotation-action-btn.edit:hover {
+      background: #bfdbfe;
+    }
+    
+    .annotation-action-btn.delete {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    
+    .annotation-action-btn.delete:hover {
+      background: #fecaca;
+    }
+    
+    .annotation-edit-form {
+      margin-top: 8px;
+    }
+    
+    .annotation-edit-textarea {
+      width: 100%;
+      min-height: 60px;
+      padding: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: inherit;
+      resize: vertical;
+      margin-bottom: 8px;
+    }
+    
+    .annotation-edit-textarea:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+    
+    .annotation-edit-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+    
+    .annotation-edit-btn {
+      padding: 4px 10px;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    
+    .annotation-edit-btn.save {
+      background: #3b82f6;
+      color: white;
+    }
+    
+    .annotation-edit-btn.save:hover {
+      background: #2563eb;
+    }
+    
+    .annotation-edit-btn.cancel {
+      background: #f1f5f9;
+      color: #475569;
+    }
+    
+    .annotation-edit-btn.cancel:hover {
+      background: #e2e8f0;
+    }
+    
+    .empty-state {
+      padding: 32px 16px;
+      text-align: center;
+      color: #94a3b8;
+    }
+    
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+    
+    .empty-state p {
+      font-size: 13px;
+    }
+    
+    .footer {
+      padding: 12px 16px;
+      border-top: 1px solid #e2e8f0;
+      text-align: center;
+    }
+    
+    .footer a {
+      font-size: 11px;
+      color: #64748b;
+      text-decoration: none;
+    }
+    
+    .footer a:hover {
+      color: #3b82f6;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Agentation</h1>
+    <p>Annotate elements for AI agents</p>
+  </div>
+  
+  <div class="actions">
+    <button class="btn btn-primary" id="toggleBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 8v4l2 2"/>
+      </svg>
+      <span>Activate</span>
+    </button>
+    <button class="btn btn-secondary" id="copyBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="9" y="9" width="13" height="13" rx="2"/>
+        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+      </svg>
+      <span>Copy</span>
+    </button>
+  </div>
+  
+  <div class="annotations-header">
+    <h2>Annotations</h2>
+    <span class="annotations-count" id="count">0</span>
+  </div>
+  
+  <div class="annotations-list" id="annotationsList">
+    <div class="empty-state" id="emptyState">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+        <rect x="9" y="3" width="6" height="4" rx="1"/>
+        <path d="M9 12h6"/>
+        <path d="M9 16h6"/>
+      </svg>
+      <p>No annotations yet.<br>Click elements to annotate.</p>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <a href="https://agentation.dev" target="_blank">Inspired by agentation.dev</a>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

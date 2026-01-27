@@ -1,0 +1,3 @@
+packages:
+  - "packages/*"
+  # external/opencode has its own workspace - install separately

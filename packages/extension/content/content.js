@@ -1,0 +1,1842 @@
+(function () {
+  "use strict";
+
+  let isActive = false;
+  let annotations = [];
+  let hoveredElement = null;
+  let labelElement = null;
+  let toolbar = null;
+  let animationsPaused = false;
+  let markersHidden = false;
+  let toolbarExpanded = false;
+
+  let isDragging = false;
+  let dragStartPos = null;
+  let selectionBox = null;
+  let selectedElements = [];
+  let justFinishedDrag = false;
+
+  let settings = {
+    outputDetail: "standard",
+    markerColor: "#ef4444",
+    clearAfterCopy: false,
+    blockInteractions: false,
+  };
+
+  function throttle(fn, wait) {
+    let lastTime = 0;
+    let timeoutId = null;
+    return function (...args) {
+      const now = Date.now();
+      const remaining = wait - (now - lastTime);
+
+      if (remaining <= 0) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        lastTime = now;
+        fn.apply(this, args);
+      } else if (!timeoutId) {
+        timeoutId = setTimeout(() => {
+          lastTime = Date.now();
+          timeoutId = null;
+          fn.apply(this, args);
+        }, remaining);
+      }
+    };
+  }
+
+  function getElementPosition(selector) {
+    try {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+
+      const rect = element.getBoundingClientRect();
+      return {
+        top: rect.top + window.scrollY,
+        left: rect.left + window.scrollX,
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function updateMarkerPositions() {
+    annotations.forEach((annotation) => {
+      const marker = document.querySelector(
+        `[data-annotation-id="${annotation.id}"]`,
+      );
+      if (!marker) return;
+
+      const position = getElementPosition(annotation.selector);
+      if (position) {
+        marker.style.top = `${position.top - 12}px`;
+        marker.style.left = `${position.left - 12}px`;
+      }
+    });
+  }
+
+  const throttledUpdateMarkerPositions = throttle(updateMarkerPositions, 16);
+
+  function getUniqueSelector(element) {
+    if (element.id) {
+      return `#${CSS.escape(element.id)}`;
+    }
+
+    const path = [];
+    let current = element;
+
+    while (
+      current &&
+      current !== document.body &&
+      current !== document.documentElement
+    ) {
+      let selector = current.tagName.toLowerCase();
+
+      if (current.className && typeof current.className === "string") {
+        const classes = current.className
+          .split(/\s+/)
+          .filter((c) => c && !c.startsWith("agentation-"))
+          .slice(0, 2);
+        if (classes.length > 0) {
+          selector += "." + classes.map((c) => CSS.escape(c)).join(".");
+        }
+      }
+
+      const parent = current.parentElement;
+      if (parent) {
+        const siblings = Array.from(parent.children).filter(
+          (child) => child.tagName === current.tagName,
+        );
+        if (siblings.length > 1) {
+          const index = siblings.indexOf(current) + 1;
+          selector += `:nth-of-type(${index})`;
+        }
+      }
+
+      path.unshift(selector);
+      current = parent;
+    }
+
+    return path.join(" > ");
+  }
+
+  function getElementDescription(element) {
+    const tag = element.tagName.toLowerCase();
+    const id = element.id ? `#${element.id}` : "";
+    const classes =
+      element.className && typeof element.className === "string"
+        ? "." +
+          element.className
+            .split(/\s+/)
+            .filter((c) => c && !c.startsWith("agentation-"))
+            .slice(0, 2)
+            .join(".")
+        : "";
+
+    let text = element.textContent?.trim().slice(0, 30) || "";
+    if (text.length === 30) text += "...";
+
+    return `${tag}${id}${classes}${text ? ` "${text}"` : ""}`;
+  }
+
+  function createLabel() {
+    const label = document.createElement("div");
+    label.className = "agentation-label";
+    document.body.appendChild(label);
+    return label;
+  }
+
+  function updateLabel(element, x, y) {
+    if (!labelElement) {
+      labelElement = createLabel();
+    }
+
+    labelElement.textContent = getElementDescription(element);
+    labelElement.style.left = `${x + 15}px`;
+    labelElement.style.top = `${y + 15}px`;
+    labelElement.style.display = "block";
+  }
+
+  function hideLabel() {
+    if (labelElement) {
+      labelElement.style.display = "none";
+    }
+  }
+
+  function onMouseOver(e) {
+    if (!isActive) return;
+
+    const target = e.target;
+    if (
+      target.closest(".agentation-toolbar") ||
+      target.closest(".agentation-modal-overlay") ||
+      target.closest(".agentation-popover") ||
+      target.closest(".agentation-marker") ||
+      target.closest(".agentation-settings-panel") ||
+      target.classList.contains("agentation-label")
+    ) {
+      return;
+    }
+
+    if (hoveredElement) {
+      hoveredElement.classList.remove("agentation-highlight");
+    }
+
+    hoveredElement = target;
+    hoveredElement.classList.add("agentation-highlight");
+    updateLabel(target, e.clientX, e.clientY);
+  }
+
+  function onMouseOut(e) {
+    if (!isActive) return;
+
+    if (hoveredElement) {
+      hoveredElement.classList.remove("agentation-highlight");
+      hoveredElement = null;
+    }
+    hideLabel();
+  }
+
+  function onMouseMove(e) {
+    if (!isActive) return;
+
+    if (isDragging && selectionBox) {
+      updateSelectionBox(e.clientX, e.clientY);
+      updateSelectedElements();
+      return;
+    }
+
+    if (dragStartPos && !isDragging) {
+      const dx = Math.abs(e.clientX - dragStartPos.x);
+      const dy = Math.abs(e.clientY - dragStartPos.y);
+      const DRAG_THRESHOLD = 5;
+
+      if (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD) {
+        startDragSelection(dragStartPos.x, dragStartPos.y);
+        updateSelectionBox(e.clientX, e.clientY);
+        return;
+      }
+    }
+
+    if (!hoveredElement) return;
+    updateLabel(hoveredElement, e.clientX, e.clientY);
+  }
+
+  function onMouseDown(e) {
+    if (!isActive) return;
+
+    const target = e.target;
+    if (
+      target.closest(".agentation-toolbar") ||
+      target.closest(".agentation-modal-overlay") ||
+      target.closest(".agentation-popover") ||
+      target.closest(".agentation-marker") ||
+      target.closest(".agentation-group-marker") ||
+      target.closest(".agentation-settings-panel")
+    ) {
+      return;
+    }
+
+    dragStartPos = { x: e.clientX, y: e.clientY };
+  }
+
+  function onMouseUp(e) {
+    if (!isActive) return;
+
+    if (isDragging && selectedElements.length > 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      justFinishedDrag = true;
+      showMultiAnnotationModal(selectedElements);
+    }
+
+    cleanupDragSelection();
+  }
+
+  function startDragSelection(x, y) {
+    isDragging = true;
+
+    selectionBox = document.createElement("div");
+    selectionBox.className = "agentation-selection-box";
+    selectionBox.style.left = `${x}px`;
+    selectionBox.style.top = `${y}px`;
+    selectionBox.style.width = "0px";
+    selectionBox.style.height = "0px";
+    document.body.appendChild(selectionBox);
+
+    if (hoveredElement) {
+      hoveredElement.classList.remove("agentation-highlight");
+      hoveredElement = null;
+    }
+    hideLabel();
+  }
+
+  function updateSelectionBox(currentX, currentY) {
+    if (!selectionBox || !dragStartPos) return;
+
+    const left = Math.min(dragStartPos.x, currentX);
+    const top = Math.min(dragStartPos.y, currentY);
+    const width = Math.abs(currentX - dragStartPos.x);
+    const height = Math.abs(currentY - dragStartPos.y);
+
+    selectionBox.style.left = `${left}px`;
+    selectionBox.style.top = `${top}px`;
+    selectionBox.style.width = `${width}px`;
+    selectionBox.style.height = `${height}px`;
+  }
+
+  function updateSelectedElements() {
+    if (!selectionBox) return;
+
+    selectedElements.forEach((el) =>
+      el.classList.remove("agentation-multi-highlight"),
+    );
+    selectedElements = [];
+
+    const boxRect = selectionBox.getBoundingClientRect();
+    if (boxRect.width < 10 || boxRect.height < 10) return;
+
+    const elements = document.querySelectorAll(
+      'body *:not([class*="agentation-"])',
+    );
+
+    elements.forEach((el) => {
+      if (
+        el.closest(".agentation-toolbar") ||
+        el.closest(".agentation-modal-overlay") ||
+        el.closest(".agentation-popover") ||
+        el.closest(".agentation-settings-panel")
+      ) {
+        return;
+      }
+
+      const elRect = el.getBoundingClientRect();
+      if (elRect.width === 0 || elRect.height === 0) return;
+
+      const isIntersecting = !(
+        elRect.right < boxRect.left ||
+        elRect.left > boxRect.right ||
+        elRect.bottom < boxRect.top ||
+        elRect.top > boxRect.bottom
+      );
+
+      if (isIntersecting && isLeafElement(el)) {
+        selectedElements.push(el);
+        el.classList.add("agentation-multi-highlight");
+      }
+    });
+  }
+
+  function isLeafElement(el) {
+    const children = Array.from(el.children).filter((child) => {
+      const style = window.getComputedStyle(child);
+      return style.display !== "none" && style.visibility !== "hidden";
+    });
+    return (
+      children.length === 0 ||
+      el.tagName === "BUTTON" ||
+      el.tagName === "A" ||
+      el.tagName === "INPUT"
+    );
+  }
+
+  function cleanupDragSelection() {
+    isDragging = false;
+    dragStartPos = null;
+
+    if (selectionBox) {
+      selectionBox.remove();
+      selectionBox = null;
+    }
+
+    selectedElements.forEach((el) =>
+      el.classList.remove("agentation-multi-highlight"),
+    );
+    selectedElements = [];
+  }
+
+  function showMultiAnnotationModal(elements) {
+    const existingPopover = document.querySelector(".agentation-popover");
+    if (existingPopover) {
+      existingPopover.remove();
+    }
+
+    const selectors = elements.map((el) => getUniqueSelector(el));
+    const descriptions = elements.map((el) => getElementDescription(el));
+
+    const boundingBox = getGroupBoundingBox(elements);
+
+    const overlay = document.createElement("div");
+    overlay.className = "agentation-modal-overlay";
+
+    const selectorListHtml = selectors
+      .slice(0, 5)
+      .map(
+        (sel, i) =>
+          `<div style="font-size: 11px; padding: 4px 8px; background: rgba(255,255,255,0.5); border-radius: 4px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${descriptions[i]}</div>`,
+      )
+      .join("");
+
+    const moreCount =
+      selectors.length > 5
+        ? `<div style="font-size: 11px; color: #64748b; padding: 4px;">+${selectors.length - 5} more elements</div>`
+        : "";
+
+    overlay.innerHTML = `
+      <div class="agentation-modal" style="max-width: 420px;">
+        <div class="agentation-modal-header">
+          <h3 class="agentation-modal-title">Group Annotation (${elements.length} elements)</h3>
+        </div>
+        <div style="max-height: 150px; overflow-y: auto; margin-bottom: 16px;">
+          ${selectorListHtml}
+          ${moreCount}
+        </div>
+        <textarea class="agentation-modal-textarea" placeholder="Describe the issue or change for these elements..." autofocus></textarea>
+        <div class="agentation-modal-actions">
+          <button class="agentation-btn agentation-btn-cancel">Cancel</button>
+          <button class="agentation-btn agentation-btn-add">Add Group Annotation</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const textarea = overlay.querySelector(".agentation-modal-textarea");
+    const cancelBtn = overlay.querySelector(".agentation-btn-cancel");
+    const addBtn = overlay.querySelector(".agentation-btn-add");
+
+    setTimeout(() => textarea.focus(), 10);
+
+    const closeModal = () => {
+      overlay.remove();
+    };
+
+    cancelBtn.addEventListener("click", closeModal);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeModal();
+    });
+
+    const addGroupAnnotation = () => {
+      const feedback = textarea.value.trim();
+      if (!feedback) {
+        textarea.focus();
+        return;
+      }
+
+      const annotation = {
+        id: Date.now(),
+        isGroup: true,
+        selectors,
+        descriptions,
+        feedback,
+        position: {
+          top: boundingBox.top + window.scrollY,
+          left: boundingBox.left + window.scrollX,
+        },
+        boundingBox: {
+          top: boundingBox.top + window.scrollY,
+          left: boundingBox.left + window.scrollX,
+          width: boundingBox.width,
+          height: boundingBox.height,
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      annotations.push(annotation);
+      saveAnnotations();
+      updateToolbarBadge();
+      addGroupMarker(annotation);
+      closeModal();
+    };
+
+    addBtn.addEventListener("click", addGroupAnnotation);
+    textarea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        addGroupAnnotation();
+      }
+      if (e.key === "Escape") {
+        closeModal();
+      }
+    });
+  }
+
+  function getGroupBoundingBox(elements) {
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+
+    elements.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      minX = Math.min(minX, rect.left);
+      minY = Math.min(minY, rect.top);
+      maxX = Math.max(maxX, rect.right);
+      maxY = Math.max(maxY, rect.bottom);
+    });
+
+    return {
+      top: minY,
+      left: minX,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  }
+
+  function onClick(e) {
+    if (!isActive) return;
+
+    if (isDragging || justFinishedDrag) {
+      dragStartPos = null;
+      justFinishedDrag = false;
+      return;
+    }
+
+    dragStartPos = null;
+
+    const target = e.target;
+    if (
+      target.closest(".agentation-toolbar") ||
+      target.closest(".agentation-modal-overlay") ||
+      target.closest(".agentation-popover") ||
+      target.closest(".agentation-marker") ||
+      target.closest(".agentation-group-marker") ||
+      target.closest(".agentation-settings-panel")
+    ) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    showAnnotationModal(target);
+  }
+
+  function showAnnotationModal(element) {
+    const existingPopover = document.querySelector(".agentation-popover");
+    if (existingPopover) {
+      existingPopover.remove();
+    }
+
+    const selector = getUniqueSelector(element);
+    const rect = element.getBoundingClientRect();
+
+    const popover = document.createElement("div");
+    popover.className = "agentation-popover";
+
+    popover.innerHTML = `
+      <div class="agentation-popover-arrow"></div>
+      <div class="agentation-modal-selector">${selector}</div>
+      <textarea class="agentation-modal-textarea" placeholder="Describe the issue or change you want..." autofocus></textarea>
+      <div class="agentation-modal-actions">
+        <button class="agentation-btn agentation-btn-cancel">Cancel</button>
+        <button class="agentation-btn agentation-btn-add">Add</button>
+      </div>
+    `;
+
+    document.body.appendChild(popover);
+
+    const popoverWidth = 320;
+    const popoverHeight = 200;
+    const padding = 12;
+    const arrowSize = 8;
+
+    let top, left;
+    let arrowPosition = "top";
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const spaceRight = window.innerWidth - rect.left;
+    const spaceLeft = rect.right;
+
+    if (spaceBelow >= popoverHeight + padding) {
+      top = rect.bottom + window.scrollY + arrowSize;
+      arrowPosition = "top";
+    } else if (spaceAbove >= popoverHeight + padding) {
+      top = rect.top + window.scrollY - popoverHeight - arrowSize;
+      arrowPosition = "bottom";
+    } else {
+      top = Math.max(
+        padding,
+        Math.min(
+          window.innerHeight - popoverHeight - padding,
+          rect.top + window.scrollY + rect.height / 2 - popoverHeight / 2,
+        ),
+      );
+      arrowPosition = "none";
+    }
+
+    left = rect.left + window.scrollX + rect.width / 2 - popoverWidth / 2;
+    left = Math.max(
+      padding,
+      Math.min(window.innerWidth - popoverWidth - padding, left),
+    );
+
+    popover.style.top = `${top}px`;
+    popover.style.left = `${left}px`;
+    popover.dataset.arrow = arrowPosition;
+
+    if (arrowPosition === "top" || arrowPosition === "bottom") {
+      const arrow = popover.querySelector(".agentation-popover-arrow");
+      const arrowLeft = rect.left + rect.width / 2 - left - arrowSize;
+      arrow.style.left = `${Math.max(16, Math.min(popoverWidth - 32, arrowLeft))}px`;
+    }
+
+    const textarea = popover.querySelector(".agentation-modal-textarea");
+    const cancelBtn = popover.querySelector(".agentation-btn-cancel");
+    const addBtn = popover.querySelector(".agentation-btn-add");
+
+    setTimeout(() => textarea.focus(), 10);
+
+    const closeModal = () => {
+      popover.remove();
+      document.removeEventListener("click", handleOutsideClick, true);
+      if (hoveredElement) {
+        hoveredElement.classList.remove("agentation-highlight");
+        hoveredElement = null;
+      }
+    };
+
+    const handleOutsideClick = (e) => {
+      if (!popover.contains(e.target) && e.target !== element) {
+        closeModal();
+      }
+    };
+
+    setTimeout(() => {
+      document.addEventListener("click", handleOutsideClick, true);
+    }, 0);
+
+    cancelBtn.addEventListener("click", closeModal);
+
+    const addAnnotation = () => {
+      const feedback = textarea.value.trim();
+      if (!feedback) {
+        textarea.focus();
+        return;
+      }
+
+      const annotation = {
+        id: Date.now(),
+        selector,
+        description: getElementDescription(element),
+        feedback,
+        position: {
+          top: rect.top + window.scrollY,
+          left: rect.left + window.scrollX,
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      annotations.push(annotation);
+      saveAnnotations();
+      updateToolbarBadge();
+      addMarker(annotation);
+      closeModal();
+    };
+
+    addBtn.addEventListener("click", addAnnotation);
+    textarea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        addAnnotation();
+      }
+      if (e.key === "Escape") {
+        closeModal();
+      }
+    });
+  }
+
+  function addMarker(annotation) {
+    if (annotation.isGroup) {
+      addGroupMarker(annotation);
+      return;
+    }
+
+    const marker = document.createElement("div");
+    marker.className = "agentation-marker";
+    marker.textContent = annotations.indexOf(annotation) + 1;
+
+    const position =
+      getElementPosition(annotation.selector) || annotation.position;
+    marker.style.top = `${position.top - 12}px`;
+    marker.style.left = `${position.left - 12}px`;
+    marker.style.background = settings.markerColor;
+    marker.style.display = markersHidden ? "none" : "flex";
+    marker.dataset.annotationId = annotation.id;
+
+    marker.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showAnnotationDetail(annotation);
+    });
+
+    document.body.appendChild(marker);
+  }
+
+  function addGroupMarker(annotation) {
+    const marker = document.createElement("div");
+    marker.className = "agentation-group-marker";
+
+    const index = annotations.indexOf(annotation) + 1;
+    marker.innerHTML = `${index}<span class="agentation-group-marker-count">${annotation.selectors.length}</span>`;
+
+    const position = annotation.position || annotation.boundingBox;
+    marker.style.top = `${position.top - 14}px`;
+    marker.style.left = `${position.left - 14}px`;
+    marker.style.display = markersHidden ? "none" : "flex";
+    marker.dataset.annotationId = annotation.id;
+
+    marker.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showGroupAnnotationDetail(annotation);
+    });
+
+    document.body.appendChild(marker);
+  }
+
+  function showGroupAnnotationDetail(annotation) {
+    const overlay = document.createElement("div");
+    overlay.className = "agentation-modal-overlay";
+
+    const selectorListHtml = annotation.selectors
+      .map(
+        (sel, i) =>
+          `<div style="font-size: 11px; padding: 6px 8px; background: rgba(255,255,255,0.5); border-radius: 4px; margin-bottom: 4px;">
+        <div style="font-weight: 500; color: #1e293b; margin-bottom: 2px;">${annotation.descriptions[i]}</div>
+        <div style="color: #64748b; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${sel}</div>
+      </div>`,
+      )
+      .join("");
+
+    overlay.innerHTML = `
+      <div class="agentation-modal" style="max-width: 450px; max-height: 80vh; display: flex; flex-direction: column;">
+        <div class="agentation-modal-header">
+          <h3 class="agentation-modal-title">Group Annotation #${annotations.indexOf(annotation) + 1} (${annotation.selectors.length} elements)</h3>
+        </div>
+        <div style="max-height: 200px; overflow-y: auto; margin-bottom: 16px; padding: 4px;">
+          ${selectorListHtml}
+        </div>
+        <div class="agentation-feedback-display" style="padding: 12px; background: #f8fafc; border-radius: 8px; margin-bottom: 16px; flex-shrink: 0;">
+          ${annotation.feedback}
+        </div>
+        <div class="agentation-edit-container" style="display: none; margin-bottom: 16px;">
+          <textarea class="agentation-modal-textarea agentation-edit-textarea" style="min-height: 100px;">${annotation.feedback}</textarea>
+        </div>
+        <div class="agentation-modal-actions">
+          <button class="agentation-btn agentation-btn-cancel" data-action="delete" style="background: #fee2e2; color: #dc2626;">Delete</button>
+          <button class="agentation-btn agentation-btn-cancel" data-action="edit" style="background: #dbeafe; color: #2563eb;">Edit</button>
+          <button class="agentation-btn agentation-btn-add" data-action="save" style="display: none;">Save</button>
+          <button class="agentation-btn agentation-btn-cancel" data-action="cancel-edit" style="display: none;">Cancel</button>
+          <button class="agentation-btn agentation-btn-cancel" data-action="close">Close</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const deleteBtn = overlay.querySelector('[data-action="delete"]');
+    const editBtn = overlay.querySelector('[data-action="edit"]');
+    const saveBtn = overlay.querySelector('[data-action="save"]');
+    const cancelEditBtn = overlay.querySelector('[data-action="cancel-edit"]');
+    const closeBtn = overlay.querySelector('[data-action="close"]');
+    const feedbackDisplay = overlay.querySelector(
+      ".agentation-feedback-display",
+    );
+    const editContainer = overlay.querySelector(".agentation-edit-container");
+    const editTextarea = overlay.querySelector(".agentation-edit-textarea");
+
+    const closeModal = () => overlay.remove();
+
+    const enterEditMode = () => {
+      feedbackDisplay.style.display = "none";
+      editContainer.style.display = "block";
+      deleteBtn.style.display = "none";
+      editBtn.style.display = "none";
+      closeBtn.style.display = "none";
+      saveBtn.style.display = "inline-flex";
+      cancelEditBtn.style.display = "inline-flex";
+      editTextarea.focus();
+    };
+
+    const exitEditMode = () => {
+      feedbackDisplay.style.display = "block";
+      editContainer.style.display = "none";
+      deleteBtn.style.display = "inline-flex";
+      editBtn.style.display = "inline-flex";
+      closeBtn.style.display = "inline-flex";
+      saveBtn.style.display = "none";
+      cancelEditBtn.style.display = "none";
+      editTextarea.value = annotation.feedback;
+    };
+
+    closeBtn.addEventListener("click", closeModal);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeModal();
+    });
+
+    editBtn.addEventListener("click", enterEditMode);
+    cancelEditBtn.addEventListener("click", exitEditMode);
+
+    saveBtn.addEventListener("click", () => {
+      const newFeedback = editTextarea.value.trim();
+      if (!newFeedback) {
+        editTextarea.focus();
+        return;
+      }
+
+      annotation.feedback = newFeedback;
+      saveAnnotations();
+      feedbackDisplay.textContent = newFeedback;
+      exitEditMode();
+      showToast("Annotation updated");
+    });
+
+    editTextarea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        saveBtn.click();
+      }
+      if (e.key === "Escape") {
+        exitEditMode();
+      }
+    });
+
+    deleteBtn.addEventListener("click", () => {
+      showDeleteConfirm(annotation, () => {
+        const index = annotations.findIndex((a) => a.id === annotation.id);
+        if (index !== -1) {
+          annotations.splice(index, 1);
+          saveAnnotations();
+          updateToolbarBadge();
+
+          const marker = document.querySelector(
+            `[data-annotation-id="${annotation.id}"]`,
+          );
+          if (marker) marker.remove();
+
+          refreshMarkers();
+        }
+        closeModal();
+      });
+    });
+  }
+
+  function showAnnotationDetail(annotation) {
+    const overlay = document.createElement("div");
+    overlay.className = "agentation-modal-overlay";
+
+    overlay.innerHTML = `
+      <div class="agentation-modal">
+        <div class="agentation-modal-header">
+          <h3 class="agentation-modal-title">Annotation #${annotations.indexOf(annotation) + 1}</h3>
+        </div>
+        <div class="agentation-modal-selector">${annotation.selector}</div>
+        <div class="agentation-feedback-display" style="padding: 12px; background: #f8fafc; border-radius: 8px; margin-bottom: 16px;">
+          ${annotation.feedback}
+        </div>
+        <div class="agentation-edit-container" style="display: none; margin-bottom: 16px;">
+          <textarea class="agentation-modal-textarea agentation-edit-textarea" style="min-height: 100px;">${annotation.feedback}</textarea>
+        </div>
+        <div class="agentation-modal-actions">
+          <button class="agentation-btn agentation-btn-cancel" data-action="delete" style="background: #fee2e2; color: #dc2626;">Delete</button>
+          <button class="agentation-btn agentation-btn-cancel" data-action="edit" style="background: #dbeafe; color: #2563eb;">Edit</button>
+          <button class="agentation-btn agentation-btn-add" data-action="save" style="display: none;">Save</button>
+          <button class="agentation-btn agentation-btn-cancel" data-action="cancel-edit" style="display: none;">Cancel</button>
+          <button class="agentation-btn agentation-btn-cancel" data-action="close">Close</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const deleteBtn = overlay.querySelector('[data-action="delete"]');
+    const editBtn = overlay.querySelector('[data-action="edit"]');
+    const saveBtn = overlay.querySelector('[data-action="save"]');
+    const cancelEditBtn = overlay.querySelector('[data-action="cancel-edit"]');
+    const closeBtn = overlay.querySelector('[data-action="close"]');
+    const feedbackDisplay = overlay.querySelector(
+      ".agentation-feedback-display",
+    );
+    const editContainer = overlay.querySelector(".agentation-edit-container");
+    const editTextarea = overlay.querySelector(".agentation-edit-textarea");
+
+    const closeModal = () => overlay.remove();
+
+    const enterEditMode = () => {
+      feedbackDisplay.style.display = "none";
+      editContainer.style.display = "block";
+      deleteBtn.style.display = "none";
+      editBtn.style.display = "none";
+      closeBtn.style.display = "none";
+      saveBtn.style.display = "inline-flex";
+      cancelEditBtn.style.display = "inline-flex";
+      editTextarea.focus();
+    };
+
+    const exitEditMode = () => {
+      feedbackDisplay.style.display = "block";
+      editContainer.style.display = "none";
+      deleteBtn.style.display = "inline-flex";
+      editBtn.style.display = "inline-flex";
+      closeBtn.style.display = "inline-flex";
+      saveBtn.style.display = "none";
+      cancelEditBtn.style.display = "none";
+      editTextarea.value = annotation.feedback;
+    };
+
+    closeBtn.addEventListener("click", closeModal);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeModal();
+    });
+
+    editBtn.addEventListener("click", enterEditMode);
+    cancelEditBtn.addEventListener("click", exitEditMode);
+
+    saveBtn.addEventListener("click", () => {
+      const newFeedback = editTextarea.value.trim();
+      if (!newFeedback) {
+        editTextarea.focus();
+        return;
+      }
+
+      annotation.feedback = newFeedback;
+      saveAnnotations();
+      feedbackDisplay.textContent = newFeedback;
+      exitEditMode();
+      showToast("Annotation updated");
+    });
+
+    editTextarea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        saveBtn.click();
+      }
+      if (e.key === "Escape") {
+        exitEditMode();
+      }
+    });
+
+    deleteBtn.addEventListener("click", () => {
+      showDeleteConfirm(annotation, () => {
+        const index = annotations.findIndex((a) => a.id === annotation.id);
+        if (index !== -1) {
+          annotations.splice(index, 1);
+          saveAnnotations();
+          updateToolbarBadge();
+
+          const marker = document.querySelector(
+            `[data-annotation-id="${annotation.id}"]`,
+          );
+          if (marker) marker.remove();
+
+          refreshMarkers();
+        }
+        closeModal();
+      });
+    });
+  }
+
+  function showDeleteConfirm(annotation, onConfirm) {
+    const confirmOverlay = document.createElement("div");
+    confirmOverlay.className = "agentation-modal-overlay";
+    confirmOverlay.style.background = "rgba(0, 0, 0, 0.3)";
+
+    confirmOverlay.innerHTML = `
+      <div class="agentation-modal" style="max-width: 280px; text-align: center;">
+        <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; color: #1e293b;">Delete Annotation?</div>
+        <div style="font-size: 13px; color: #64748b; margin-bottom: 16px;">This action cannot be undone.</div>
+        <div class="agentation-modal-actions" style="justify-content: center;">
+          <button class="agentation-btn agentation-btn-cancel" data-action="cancel">Cancel</button>
+          <button class="agentation-btn" data-action="confirm" style="background: #dc2626; color: white;">Delete</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(confirmOverlay);
+
+    const cancelBtn = confirmOverlay.querySelector('[data-action="cancel"]');
+    const confirmBtn = confirmOverlay.querySelector('[data-action="confirm"]');
+
+    const closeConfirm = () => confirmOverlay.remove();
+
+    cancelBtn.addEventListener("click", closeConfirm);
+    confirmOverlay.addEventListener("click", (e) => {
+      if (e.target === confirmOverlay) closeConfirm();
+    });
+
+    confirmBtn.addEventListener("click", () => {
+      closeConfirm();
+      onConfirm();
+    });
+  }
+
+  function refreshMarkers() {
+    document
+      .querySelectorAll(".agentation-marker, .agentation-group-marker")
+      .forEach((m) => m.remove());
+    annotations.forEach(addMarker);
+  }
+
+  function saveAnnotations() {
+    chrome.runtime.sendMessage({ type: "SAVE_ANNOTATIONS", annotations });
+  }
+
+  function loadAnnotations() {
+    chrome.runtime.sendMessage({ type: "GET_ANNOTATIONS" }, (response) => {
+      if (response?.annotations) {
+        annotations = response.annotations;
+        updateToolbarBadge();
+        refreshMarkers();
+      }
+    });
+  }
+
+  function generateMarkdown() {
+    if (annotations.length === 0) return "";
+
+    let md = `# UI Annotations\n\n`;
+    md += `**Page:** ${window.location.href}\n`;
+    md += `**Generated:** ${new Date().toLocaleString()}\n\n`;
+    md += `---\n\n`;
+
+    annotations.forEach((annotation, index) => {
+      if (annotation.isGroup) {
+        md += `## ${index + 1}. Group (${annotation.selectors.length} elements)\n\n`;
+        md += `**Elements:**\n`;
+        annotation.selectors.forEach((sel, i) => {
+          md += `- ${annotation.descriptions[i]}: \`${sel}\`\n`;
+        });
+        md += `\n`;
+
+        if (settings.outputDetail === "detailed") {
+          md += `**Bounding Box:** top: ${Math.round(annotation.boundingBox.top)}px, left: ${Math.round(annotation.boundingBox.left)}px, ${Math.round(annotation.boundingBox.width)}x${Math.round(annotation.boundingBox.height)}px\n\n`;
+          md += `**Timestamp:** ${annotation.timestamp}\n\n`;
+        }
+      } else {
+        md += `## ${index + 1}. ${annotation.description}\n\n`;
+        md += `**Selector:** \`${annotation.selector}\`\n\n`;
+
+        if (settings.outputDetail === "detailed") {
+          md += `**Position:** top: ${Math.round(annotation.position.top)}px, left: ${Math.round(annotation.position.left)}px\n\n`;
+          md += `**Timestamp:** ${annotation.timestamp}\n\n`;
+        }
+      }
+
+      md += `**Feedback:**\n${annotation.feedback}\n\n`;
+      md += `---\n\n`;
+    });
+
+    return md;
+  }
+
+  async function copyToClipboard() {
+    const md = generateMarkdown();
+    if (!md) {
+      showToast("No annotations to copy");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(md);
+      showToast(`Copied ${annotations.length} annotation(s) to clipboard`);
+
+      if (settings.clearAfterCopy) {
+        annotations = [];
+        saveAnnotations();
+        updateToolbarBadge();
+        document
+          .querySelectorAll(".agentation-marker, .agentation-group-marker")
+          .forEach((m) => m.remove());
+      }
+    } catch (err) {
+      showToast("Failed to copy");
+    }
+  }
+
+  let mcpConnected = false;
+  let mcpConnecting = false;
+
+  function updateMCPStatus(connected) {
+    mcpConnected = connected;
+    const statusIndicator = toolbar?.querySelector(".agentation-mcp-status");
+    const aiBtn = toolbar?.querySelector('[data-action="send-to-ai"]');
+
+    if (statusIndicator) {
+      statusIndicator.style.display = "block";
+      statusIndicator.style.background = connected ? "#22c55e" : "#ef4444";
+      statusIndicator.title = connected
+        ? "MCP 서버 연결됨"
+        : "MCP 서버 연결 안됨";
+    }
+
+    if (aiBtn) {
+      aiBtn.classList.toggle("connected", connected);
+    }
+  }
+
+  async function connectToMCP() {
+    if (mcpConnecting || mcpConnected) return;
+
+    mcpConnecting = true;
+
+    try {
+      if (window.agentationWS) {
+        window.agentationWS.onStatusChange = (status) => {
+          updateMCPStatus(status.connected);
+        };
+
+        window.agentationWS.onFeedbackResult = (result) => {
+          if (result.success && result.response) {
+            showAIResponseModal(result.response);
+          }
+        };
+
+        await window.agentationWS.connect();
+        updateMCPStatus(true);
+      }
+    } catch (error) {
+      console.log("[Agentation] MCP server not available:", error.message);
+      updateMCPStatus(false);
+    } finally {
+      mcpConnecting = false;
+    }
+  }
+
+  async function sendToAI() {
+    if (annotations.length === 0) {
+      showToast("피드백을 추가해주세요");
+      return;
+    }
+
+    if (!mcpConnected && window.agentationWS) {
+      showToast("MCP 서버에 연결 중...");
+      try {
+        await connectToMCP();
+      } catch (error) {
+        showToast("MCP 서버에 연결할 수 없습니다");
+        return;
+      }
+    }
+
+    showSendToAIModal();
+  }
+
+  function showSendToAIModal() {
+    const overlay = document.createElement("div");
+    overlay.className = "agentation-modal-overlay";
+
+    const connectionStatus = mcpConnected
+      ? '<span style="color: #22c55e;">● MCP 서버 연결됨</span>'
+      : '<span style="color: #ef4444;">● MCP 서버 연결 안됨</span>';
+
+    overlay.innerHTML = `
+      <div class="agentation-modal" style="max-width: 450px;">
+        <div class="agentation-modal-header">
+          <h3 class="agentation-modal-title">AI에게 지시하기</h3>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">
+            ${connectionStatus}
+          </div>
+          <div style="font-size: 14px; margin-bottom: 12px; color: #1e293b;">
+            <strong>${annotations.length}개</strong>의 어노테이션을 AI에게 전송합니다.
+          </div>
+          <div style="max-height: 150px; overflow-y: auto; background: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+            ${annotations
+              .map((a, i) => {
+                const desc = a.isGroup
+                  ? `그룹 (${a.selectors.length}개 요소)`
+                  : a.description;
+                return `<div style="font-size: 12px; padding: 4px 0; border-bottom: 1px solid #e2e8f0; color: #1e293b;">
+                <strong>${i + 1}.</strong> ${desc}
+                <div style="color: #475569; margin-top: 2px;">${a.feedback.slice(0, 50)}${a.feedback.length > 50 ? "..." : ""}</div>
+              </div>`;
+              })
+              .join("")}
+          </div>
+          <textarea class="agentation-modal-textarea" placeholder="추가 컨텍스트를 입력하세요 (선택사항)..." style="min-height: 60px;"></textarea>
+        </div>
+        <div class="agentation-modal-actions">
+          <button class="agentation-btn agentation-btn-cancel" data-action="cancel">취소</button>
+          ${
+            mcpConnected
+              ? '<button class="agentation-btn agentation-btn-add" data-action="send">AI에게 전송</button>'
+              : '<button class="agentation-btn" data-action="copy-instead" style="background: #3b82f6; color: white;">클립보드에 복사</button>'
+          }
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const textarea = overlay.querySelector(".agentation-modal-textarea");
+    const cancelBtn = overlay.querySelector('[data-action="cancel"]');
+    const sendBtn = overlay.querySelector('[data-action="send"]');
+    const copyInsteadBtn = overlay.querySelector(
+      '[data-action="copy-instead"]',
+    );
+
+    const closeModal = () => overlay.remove();
+
+    cancelBtn.addEventListener("click", closeModal);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeModal();
+    });
+
+    if (sendBtn) {
+      sendBtn.addEventListener("click", async () => {
+        sendBtn.disabled = true;
+        sendBtn.textContent = "전송 중...";
+
+        try {
+          const additionalContext = textarea.value.trim();
+          const response = await window.agentationWS.submitFeedback(
+            annotations,
+            additionalContext,
+          );
+
+          closeModal();
+          showToast("AI에게 피드백을 전송했습니다");
+
+          if (response) {
+            showAIResponseModal(response);
+          }
+
+          if (settings.clearAfterCopy) {
+            annotations = [];
+            saveAnnotations();
+            updateToolbarBadge();
+            document
+              .querySelectorAll(".agentation-marker, .agentation-group-marker")
+              .forEach((m) => m.remove());
+          }
+        } catch (error) {
+          showToast("전송 실패: " + error.message);
+          sendBtn.disabled = false;
+          sendBtn.textContent = "AI에게 전송";
+        }
+      });
+    }
+
+    if (copyInsteadBtn) {
+      copyInsteadBtn.addEventListener("click", async () => {
+        await copyToClipboard();
+        closeModal();
+      });
+    }
+  }
+
+  function showAIResponseModal(response) {
+    const overlay = document.createElement("div");
+    overlay.className = "agentation-modal-overlay";
+
+    overlay.innerHTML = `
+      <div class="agentation-modal" style="max-width: 600px; max-height: 80vh;">
+        <div class="agentation-modal-header">
+          <h3 class="agentation-modal-title">AI 응답</h3>
+        </div>
+        <div style="max-height: 60vh; overflow-y: auto; background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 16px; white-space: pre-wrap; font-family: monospace; font-size: 13px; line-height: 1.5; color: #1e293b;">
+          ${escapeHtml(response)}
+        </div>
+        <div class="agentation-modal-actions">
+          <button class="agentation-btn agentation-btn-cancel" data-action="copy-response" style="background: #dbeafe; color: #2563eb;">응답 복사</button>
+          <button class="agentation-btn agentation-btn-add" data-action="close">닫기</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const closeBtn = overlay.querySelector('[data-action="close"]');
+    const copyResponseBtn = overlay.querySelector(
+      '[data-action="copy-response"]',
+    );
+
+    const closeModal = () => overlay.remove();
+
+    closeBtn.addEventListener("click", closeModal);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeModal();
+    });
+
+    copyResponseBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(response);
+        showToast("응답이 복사되었습니다");
+      } catch (err) {
+        showToast("복사 실패");
+      }
+    });
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function showToast(message) {
+    const toast = document.createElement("div");
+    toast.className = "agentation-toast";
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    void toast.offsetWidth;
+    toast.classList.add("visible");
+
+    setTimeout(() => {
+      toast.classList.remove("visible");
+      setTimeout(() => toast.remove(), 300);
+    }, 2000);
+  }
+
+  function toggleAnimations() {
+    animationsPaused = !animationsPaused;
+    document.body.classList.toggle(
+      "agentation-animations-paused",
+      animationsPaused,
+    );
+    updateToolbarButtons();
+  }
+
+  function toggleMarkers() {
+    markersHidden = !markersHidden;
+    document
+      .querySelectorAll(".agentation-marker, .agentation-group-marker")
+      .forEach((marker) => {
+        marker.style.display = markersHidden ? "none" : "flex";
+      });
+    updateToolbarButtons();
+  }
+
+  function toggleToolbarExpand() {
+    toolbarExpanded = !toolbarExpanded;
+    toolbar.classList.toggle("collapsed", !toolbarExpanded);
+  }
+
+  function showSettingsPanel() {
+    const existingPanel = document.querySelector(".agentation-settings-panel");
+    if (existingPanel) {
+      existingPanel.remove();
+      return;
+    }
+
+    const toolbarRect = toolbar.getBoundingClientRect();
+
+    const panel = document.createElement("div");
+    panel.className = "agentation-settings-panel";
+
+    panel.innerHTML = `
+      <div class="agentation-settings-header">
+        <span class="agentation-settings-title">Settings</span>
+      </div>
+      <div class="agentation-settings-group">
+        <label class="agentation-settings-label">Output Detail</label>
+        <select class="agentation-settings-select" data-setting="outputDetail">
+          <option value="standard" ${settings.outputDetail === "standard" ? "selected" : ""}>Standard</option>
+          <option value="detailed" ${settings.outputDetail === "detailed" ? "selected" : ""}>Detailed</option>
+        </select>
+      </div>
+      <div class="agentation-settings-group">
+        <label class="agentation-settings-label">Marker Color</label>
+        <div class="agentation-color-options">
+          <button class="agentation-color-btn ${settings.markerColor === "#ef4444" ? "active" : ""}" data-color="#ef4444" style="background: #ef4444;"></button>
+          <button class="agentation-color-btn ${settings.markerColor === "#f97316" ? "active" : ""}" data-color="#f97316" style="background: #f97316;"></button>
+          <button class="agentation-color-btn ${settings.markerColor === "#eab308" ? "active" : ""}" data-color="#eab308" style="background: #eab308;"></button>
+          <button class="agentation-color-btn ${settings.markerColor === "#22c55e" ? "active" : ""}" data-color="#22c55e" style="background: #22c55e;"></button>
+          <button class="agentation-color-btn ${settings.markerColor === "#3b82f6" ? "active" : ""}" data-color="#3b82f6" style="background: #3b82f6;"></button>
+          <button class="agentation-color-btn ${settings.markerColor === "#a855f7" ? "active" : ""}" data-color="#a855f7" style="background: #a855f7;"></button>
+        </div>
+      </div>
+      <div class="agentation-settings-group">
+        <label class="agentation-settings-checkbox">
+          <input type="checkbox" data-setting="clearAfterCopy" ${settings.clearAfterCopy ? "checked" : ""}>
+          <span>Clear after copy</span>
+        </label>
+      </div>
+      <div class="agentation-settings-group">
+        <label class="agentation-settings-checkbox">
+          <input type="checkbox" data-setting="blockInteractions" ${settings.blockInteractions ? "checked" : ""}>
+          <span>Block page interactions</span>
+        </label>
+      </div>
+    `;
+
+    panel.style.bottom = `${window.innerHeight - toolbarRect.top + 8}px`;
+    panel.style.right = "20px";
+
+    document.body.appendChild(panel);
+
+    panel
+      .querySelector(".agentation-settings-select")
+      .addEventListener("change", (e) => {
+        settings.outputDetail = e.target.value;
+        saveSettings();
+      });
+
+    panel.querySelectorAll(".agentation-color-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        settings.markerColor = btn.dataset.color;
+        panel
+          .querySelectorAll(".agentation-color-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        applyMarkerColor();
+        saveSettings();
+      });
+    });
+
+    panel.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+      checkbox.addEventListener("change", (e) => {
+        settings[e.target.dataset.setting] = e.target.checked;
+        if (e.target.dataset.setting === "blockInteractions") {
+          document.body.classList.toggle(
+            "agentation-block-interactions",
+            settings.blockInteractions && isActive,
+          );
+        }
+        saveSettings();
+      });
+    });
+
+    const closePanel = (e) => {
+      if (
+        !panel.contains(e.target) &&
+        !e.target.closest('[data-action="settings"]')
+      ) {
+        panel.remove();
+        document.removeEventListener("click", closePanel, true);
+      }
+    };
+
+    setTimeout(() => {
+      document.addEventListener("click", closePanel, true);
+    }, 0);
+  }
+
+  function applyMarkerColor() {
+    document.querySelectorAll(".agentation-marker").forEach((marker) => {
+      marker.style.background = settings.markerColor;
+    });
+  }
+
+  function saveSettings() {
+    chrome.runtime.sendMessage({ type: "SAVE_SETTINGS", settings });
+  }
+
+  function loadSettings() {
+    chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (response) => {
+      if (response?.settings) {
+        settings = { ...settings, ...response.settings };
+        applyMarkerColor();
+      }
+    });
+  }
+
+  function createToolbar() {
+    const toolbar = document.createElement("div");
+    toolbar.className = "agentation-toolbar collapsed";
+
+    toolbar.innerHTML = `
+      <button class="agentation-toolbar-btn agentation-expand-btn" data-action="expand" title="Open Agentation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+          <path d="M12 8v4M12 16h.01"/>
+        </svg>
+      </button>
+      <div class="agentation-toolbar-buttons">
+        <button class="agentation-toolbar-btn" data-action="toggle" title="Toggle Agentation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 8v4l2 2"/>
+          </svg>
+        </button>
+        <button class="agentation-toolbar-btn" data-action="copy" title="Copy to Clipboard" style="position: relative;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2"/>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+          </svg>
+          <span class="agentation-toolbar-badge" style="display: none;">0</span>
+        </button>
+        <button class="agentation-toolbar-btn agentation-ai-btn" data-action="send-to-ai" title="AI에게 지시하기" style="position: relative;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
+          <span class="agentation-mcp-status" style="display: none;"></span>
+        </button>
+        <button class="agentation-toolbar-btn" data-action="visibility" title="Toggle Markers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+        <button class="agentation-toolbar-btn" data-action="pause" title="Pause Animations">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="6" y="4" width="4" height="16"/>
+            <rect x="14" y="4" width="4" height="16"/>
+          </svg>
+        </button>
+        <button class="agentation-toolbar-btn" data-action="clear" title="Clear All">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18"/>
+            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
+            <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+          </svg>
+        </button>
+        <button class="agentation-toolbar-btn" data-action="settings" title="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+          </svg>
+        </button>
+        <button class="agentation-toolbar-btn" data-action="collapse" title="Close toolbar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(toolbar);
+
+    toolbar.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-action]");
+      if (!btn) return;
+
+      const action = btn.dataset.action;
+
+      switch (action) {
+        case "expand":
+          toggleToolbarExpand();
+          break;
+        case "collapse":
+          toggleToolbarExpand();
+          break;
+        case "toggle":
+          toggleActive();
+          break;
+        case "copy":
+          copyToClipboard();
+          break;
+        case "send-to-ai":
+          sendToAI();
+          break;
+        case "visibility":
+          toggleMarkers();
+          break;
+        case "pause":
+          toggleAnimations();
+          break;
+        case "clear":
+          showAnnotationListModal();
+          break;
+        case "settings":
+          showSettingsPanel();
+          break;
+      }
+    });
+
+    return toolbar;
+  }
+
+  function toggleActive() {
+    isActive = !isActive;
+    chrome.runtime.sendMessage({ type: "SET_STATE", isActive });
+    updateToolbarButtons();
+
+    if (settings.blockInteractions) {
+      document.body.classList.toggle("agentation-block-interactions", isActive);
+    }
+
+    if (!isActive && hoveredElement) {
+      hoveredElement.classList.remove("agentation-highlight");
+      hoveredElement = null;
+      hideLabel();
+    }
+  }
+
+  function updateToolbarButtons() {
+    const toggleBtn = toolbar?.querySelector('[data-action="toggle"]');
+    const visibilityBtn = toolbar?.querySelector('[data-action="visibility"]');
+    const pauseBtn = toolbar?.querySelector('[data-action="pause"]');
+
+    if (toggleBtn) {
+      toggleBtn.classList.toggle("active", isActive);
+    }
+    if (visibilityBtn) {
+      visibilityBtn.classList.toggle("active", !markersHidden);
+    }
+    if (pauseBtn) {
+      pauseBtn.classList.toggle("active", animationsPaused);
+    }
+  }
+
+  function updateToolbarBadge() {
+    const badge = toolbar?.querySelector(".agentation-toolbar-badge");
+    if (badge) {
+      badge.textContent = annotations.length;
+      badge.style.display = annotations.length > 0 ? "flex" : "none";
+    }
+  }
+
+  function showAnnotationListModal() {
+    if (annotations.length === 0) {
+      showToast("No annotations to manage");
+      return;
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "agentation-modal-overlay";
+
+    const renderList = () => {
+      const listHtml = annotations
+        .map((annotation, index) => {
+          const desc = annotation.isGroup
+            ? `Group (${annotation.selectors.length} elements)`
+            : annotation.description;
+          const numberStyle = annotation.isGroup
+            ? "background: rgba(59, 130, 246, 0.8);"
+            : "";
+
+          return `
+          <div class="agentation-list-item" data-id="${annotation.id}">
+            <div class="agentation-list-item-header">
+              <span class="agentation-list-item-number" style="${numberStyle}">${index + 1}</span>
+              <span class="agentation-list-item-desc">${desc}</span>
+            </div>
+            <div class="agentation-list-item-feedback">${annotation.feedback}</div>
+            <div class="agentation-list-item-actions">
+              <button class="agentation-btn agentation-btn-small" data-action="edit" style="background: #dbeafe; color: #2563eb;">Edit</button>
+              <button class="agentation-btn agentation-btn-small" data-action="delete" style="background: #fee2e2; color: #dc2626;">Delete</button>
+            </div>
+          </div>
+        `;
+        })
+        .join("");
+
+      return listHtml;
+    };
+
+    overlay.innerHTML = `
+      <div class="agentation-modal" style="max-width: 400px; max-height: 80vh; display: flex; flex-direction: column;">
+        <div class="agentation-modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 class="agentation-modal-title">Annotations (${annotations.length})</h3>
+        </div>
+        <div class="agentation-list-container" style="flex: 1; overflow-y: auto; margin: 12px 0;">
+          ${renderList()}
+        </div>
+        <div class="agentation-modal-actions" style="border-top: 1px solid #e2e8f0; padding-top: 12px;">
+          <button class="agentation-btn agentation-btn-cancel" data-action="clear-all" style="background: #fee2e2; color: #dc2626;">Clear All</button>
+          <button class="agentation-btn agentation-btn-cancel" data-action="close">Close</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const modal = overlay.querySelector(".agentation-modal");
+    const listContainer = overlay.querySelector(".agentation-list-container");
+    const closeBtn = overlay.querySelector('[data-action="close"]');
+    const clearAllBtn = overlay.querySelector('[data-action="clear-all"]');
+
+    const closeModal = () => overlay.remove();
+
+    const refreshList = () => {
+      if (annotations.length === 0) {
+        closeModal();
+        showToast("All annotations cleared");
+        return;
+      }
+      listContainer.innerHTML = renderList();
+      modal.querySelector(".agentation-modal-title").textContent =
+        `Annotations (${annotations.length})`;
+      attachListItemHandlers();
+    };
+
+    const deleteAnnotation = (id) => {
+      showDeleteConfirm(
+        annotations.find((a) => a.id === id),
+        () => {
+          const index = annotations.findIndex((a) => a.id === id);
+          if (index !== -1) {
+            annotations.splice(index, 1);
+            saveAnnotations();
+            updateToolbarBadge();
+
+            const marker = document.querySelector(
+              `[data-annotation-id="${id}"]`,
+            );
+            if (marker) marker.remove();
+
+            refreshMarkers();
+            refreshList();
+          }
+        },
+      );
+    };
+
+    const editAnnotation = (id) => {
+      const annotation = annotations.find((a) => a.id === id);
+      if (!annotation) return;
+
+      const item = listContainer.querySelector(`[data-id="${id}"]`);
+      const feedbackEl = item.querySelector(".agentation-list-item-feedback");
+      const actionsEl = item.querySelector(".agentation-list-item-actions");
+
+      feedbackEl.style.display = "none";
+      actionsEl.style.display = "none";
+
+      const editForm = document.createElement("div");
+      editForm.className = "agentation-list-item-edit";
+      editForm.innerHTML = `
+        <textarea class="agentation-modal-textarea" style="min-height: 60px; margin-bottom: 8px;">${annotation.feedback}</textarea>
+        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+          <button class="agentation-btn agentation-btn-small agentation-btn-cancel">Cancel</button>
+          <button class="agentation-btn agentation-btn-small agentation-btn-add">Save</button>
+        </div>
+      `;
+
+      item.appendChild(editForm);
+
+      const textarea = editForm.querySelector("textarea");
+      const saveBtn = editForm.querySelector(".agentation-btn-add");
+      const cancelBtn = editForm.querySelector(".agentation-btn-cancel");
+
+      textarea.focus();
+
+      const exitEdit = () => {
+        editForm.remove();
+        feedbackEl.style.display = "block";
+        actionsEl.style.display = "flex";
+      };
+
+      cancelBtn.addEventListener("click", exitEdit);
+
+      saveBtn.addEventListener("click", () => {
+        const newFeedback = textarea.value.trim();
+        if (!newFeedback) {
+          textarea.focus();
+          return;
+        }
+
+        annotation.feedback = newFeedback;
+        saveAnnotations();
+        feedbackEl.textContent = newFeedback;
+        exitEdit();
+        showToast("Annotation updated");
+      });
+
+      textarea.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+          saveBtn.click();
+        }
+        if (e.key === "Escape") {
+          exitEdit();
+        }
+      });
+    };
+
+    const attachListItemHandlers = () => {
+      listContainer
+        .querySelectorAll(".agentation-list-item")
+        .forEach((item) => {
+          const id = parseInt(item.dataset.id);
+
+          item
+            .querySelector('[data-action="edit"]')
+            .addEventListener("click", () => editAnnotation(id));
+          item
+            .querySelector('[data-action="delete"]')
+            .addEventListener("click", () => deleteAnnotation(id));
+        });
+    };
+
+    attachListItemHandlers();
+
+    closeBtn.addEventListener("click", closeModal);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeModal();
+    });
+
+    clearAllBtn.addEventListener("click", () => {
+      showDeleteConfirm({ feedback: "all annotations" }, () => {
+        annotations = [];
+        saveAnnotations();
+        updateToolbarBadge();
+        document
+          .querySelectorAll(".agentation-marker, .agentation-group-marker")
+          .forEach((m) => m.remove());
+        closeModal();
+        showToast("All annotations cleared");
+      });
+    });
+  }
+
+  function init() {
+    toolbar = createToolbar();
+    updateToolbarButtons();
+
+    document.addEventListener("mouseover", onMouseOver, true);
+    document.addEventListener("mouseout", onMouseOut, true);
+    document.addEventListener("mousemove", onMouseMove, true);
+    document.addEventListener("mousedown", onMouseDown, true);
+    document.addEventListener("mouseup", onMouseUp, true);
+    document.addEventListener("click", onClick, true);
+
+    window.addEventListener("scroll", throttledUpdateMarkerPositions, true);
+    window.addEventListener("resize", throttledUpdateMarkerPositions);
+
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === "STATE_CHANGED") {
+        isActive = message.isActive;
+        updateToolbarButtons();
+      }
+      if (message.type === "GET_ANNOTATIONS_FROM_CONTENT") {
+        sendResponse({ annotations });
+        return true;
+      }
+      if (message.type === "UPDATE_ANNOTATION") {
+        const annotation = annotations.find((a) => a.id === message.id);
+        if (annotation) {
+          annotation.feedback = message.feedback;
+          saveAnnotations();
+        }
+        sendResponse({ success: true });
+        return true;
+      }
+      if (message.type === "DELETE_ANNOTATION") {
+        const index = annotations.findIndex((a) => a.id === message.id);
+        if (index !== -1) {
+          annotations.splice(index, 1);
+          saveAnnotations();
+          updateToolbarBadge();
+
+          const marker = document.querySelector(
+            `[data-annotation-id="${message.id}"]`,
+          );
+          if (marker) marker.remove();
+
+          refreshMarkers();
+        }
+        sendResponse({ success: true });
+        return true;
+      }
+    });
+
+    chrome.runtime.sendMessage({ type: "GET_STATE" }, (response) => {
+      isActive = response?.isActive ?? false;
+      updateToolbarButtons();
+    });
+
+    loadAnnotations();
+    loadSettings();
+
+    setTimeout(() => connectToMCP(), 1000);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();

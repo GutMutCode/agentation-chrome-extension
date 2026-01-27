@@ -1,0 +1,709 @@
+/* Agentation Content Script Styles - Glassmorphism Redesign */
+
+.agentation-highlight {
+  outline: 2px solid rgba(59, 130, 246, 0.6) !important;
+  outline-offset: 2px !important;
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3) !important;
+  cursor: crosshair !important;
+  backdrop-filter: blur(2px) contrast(1.1);
+  border-radius: 4px;
+}
+
+.agentation-label {
+  position: fixed;
+  z-index: 2147483647;
+  background: rgba(30, 41, 59, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #f1f5f9;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.agentation-marker {
+  position: absolute;
+  z-index: 2147483646;
+  width: 28px;
+  height: 28px;
+  background: rgba(239, 68, 68, 0.8);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 
+    0 4px 12px rgba(239, 68, 68, 0.4),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.agentation-marker:hover {
+  transform: scale(1.15) translateY(-2px);
+  background: rgba(239, 68, 68, 0.9);
+  box-shadow: 0 8px 16px rgba(239, 68, 68, 0.5);
+}
+
+.agentation-marker:active {
+  transform: scale(0.95);
+}
+
+.agentation-popover {
+  position: absolute;
+  z-index: 2147483647;
+  width: 320px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.5);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  animation: agentation-popover-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+@keyframes agentation-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.agentation-popover-arrow {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transform: rotate(45deg);
+  z-index: 1;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.agentation-popover[data-arrow="top"] .agentation-popover-arrow {
+  top: -7px;
+  border-bottom: none;
+  border-right: none;
+}
+
+.agentation-popover[data-arrow="bottom"] .agentation-popover-arrow {
+  bottom: -7px;
+  border-top: none;
+  border-left: none;
+}
+
+.agentation-popover[data-arrow="none"] .agentation-popover-arrow {
+  display: none;
+}
+
+.agentation-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: agentation-fade-in 0.2s ease-out;
+}
+
+@keyframes agentation-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.agentation-modal {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 24px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.5);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.agentation-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.agentation-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.agentation-modal-selector {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: #475569;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  word-break: break-all;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.agentation-modal-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.5);
+  color: #1e293b;
+  transition: all 0.2s;
+}
+
+.agentation-modal-textarea::placeholder {
+  color: #94a3b8;
+}
+
+.agentation-modal-textarea:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.agentation-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.agentation-btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.agentation-btn:active {
+  transform: scale(0.98);
+}
+
+.agentation-btn-cancel {
+  background: rgba(255, 255, 255, 0.5);
+  color: #475569;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.agentation-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.agentation-btn-add {
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.agentation-btn-add:hover {
+  background: #3b82f6;
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.agentation-toolbar {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483645;
+  display: flex;
+  gap: 8px;
+  background: transparent;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.agentation-toolbar-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.agentation-toolbar.collapsed .agentation-toolbar-buttons {
+  display: none;
+}
+
+.agentation-toolbar.collapsed .agentation-expand-btn {
+  display: flex;
+}
+
+.agentation-toolbar:not(.collapsed) .agentation-expand-btn {
+  display: none;
+}
+
+.agentation-expand-btn {
+  background: rgba(59, 130, 246, 0.8) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+}
+
+.agentation-toolbar-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #e2e8f0;
+  position: relative;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.agentation-toolbar-btn:hover {
+  background: rgba(30, 41, 59, 0.9);
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.agentation-toolbar-btn:active,
+.agentation-toolbar-btn.active {
+  background: rgba(59, 130, 246, 0.5);
+  color: #ffffff;
+  border-color: rgba(59, 130, 246, 0.6);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+}
+
+.agentation-toolbar-btn svg {
+  width: 20px;
+  height: 20px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.agentation-toolbar-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: rgba(239, 68, 68, 0.9);
+  backdrop-filter: blur(4px);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.agentation-ai-btn {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.8), rgba(59, 130, 246, 0.8)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.agentation-ai-btn:hover {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.95), rgba(59, 130, 246, 0.95)) !important;
+  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4) !important;
+}
+
+.agentation-ai-btn.connected {
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.4) !important;
+}
+
+.agentation-mcp-status {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid rgba(15, 23, 42, 0.9);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.agentation-text-selection {
+  background-color: rgba(251, 191, 36, 0.25) !important;
+  border-bottom: 2px solid rgba(251, 191, 36, 0.5);
+  border-radius: 2px;
+}
+
+.agentation-animations-paused,
+.agentation-animations-paused * {
+  animation-play-state: paused !important;
+  transition: none !important;
+}
+
+.agentation-block-interactions {
+  pointer-events: none !important;
+}
+
+.agentation-block-interactions .agentation-toolbar,
+.agentation-block-interactions .agentation-popover,
+.agentation-block-interactions .agentation-settings-panel,
+.agentation-block-interactions .agentation-marker {
+  pointer-events: auto !important;
+}
+
+.agentation-settings-panel {
+  position: fixed;
+  z-index: 2147483646;
+  width: 280px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.agentation-settings-header {
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.agentation-settings-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.agentation-settings-group {
+  margin-bottom: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.agentation-settings-group:last-child {
+  margin-bottom: 0;
+}
+
+.agentation-settings-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.agentation-settings-select {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #f1f5f9;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.agentation-settings-select:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.agentation-color-options {
+  display: flex;
+  gap: 12px;
+}
+
+.agentation-color-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+
+.agentation-color-btn:hover {
+  transform: scale(1.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.agentation-color-btn.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.agentation-settings-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #e2e8f0;
+  user-select: none;
+}
+
+.agentation-settings-checkbox input {
+  appearance: none;
+  width: 44px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.agentation-settings-checkbox input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.agentation-settings-checkbox input:checked {
+  background: rgba(59, 130, 246, 0.5);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.agentation-settings-checkbox input:checked::after {
+  transform: translateX(20px);
+  background: #ffffff;
+}
+
+.agentation-toast {
+  position: fixed;
+  bottom: 100px;
+  right: 20px;
+  background: rgba(30, 41, 59, 0.75);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  z-index: 2147483647;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+
+.agentation-toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.agentation-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agentation-list-item {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
+.agentation-list-item:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.agentation-list-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.agentation-list-item-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: rgba(239, 68, 68, 0.8);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.agentation-list-item-desc {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentation-list-item-feedback {
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.4;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.agentation-list-item-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.agentation-btn-small {
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+
+/* Selection Box for Drag Selection */
+.agentation-selection-box {
+  position: fixed;
+  z-index: 2147483644;
+  border: 2px dashed rgba(59, 130, 246, 0.8);
+  background: rgba(59, 130, 246, 0.1);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  pointer-events: none;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+}
+
+.agentation-multi-highlight {
+  outline: 2px solid rgba(59, 130, 246, 0.8) !important;
+  outline-offset: 2px !important;
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4) !important;
+  border-radius: 4px;
+}
+
+.agentation-group-marker {
+  position: absolute;
+  z-index: 2147483646;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  background: rgba(59, 130, 246, 0.9);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: white;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 
+    0 4px 12px rgba(59, 130, 246, 0.4),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.agentation-group-marker:hover {
+  transform: scale(1.1) translateY(-2px);
+  background: rgba(59, 130, 246, 1);
+  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.5);
+}
+
+.agentation-group-marker:active {
+  transform: scale(0.95);
+}
+
+.agentation-group-marker-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  font-size: 10px;
+  padding: 0 4px;
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@agentation/extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome extension for annotating UI elements and sending feedback to AI",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "echo 'Load extension from packages/extension in Chrome'",
+    "build": "echo 'Extension uses vanilla JS, no build required'",
+    "lint": "echo 'TODO: Add linting'",
+    "screenshots": "node capture-screenshots.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.57.0"
+  }
+}
