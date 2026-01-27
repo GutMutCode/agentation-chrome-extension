@@ -28,7 +28,8 @@ AI-powered UI feedback system. Annotate webpage elements and send feedback direc
 - **pnpm** (`npm install -g pnpm`)
 - **bun** (`curl -fsSL https://bun.sh/install | bash`)
 - **Chrome** browser
-- **Anthropic API key** or other LLM provider
+
+> **Note:** Windows is not tested. macOS and Linux are supported.
 
 ## Quick Start
 
@@ -39,15 +40,30 @@ git clone --recursive https://github.com/GutMutCode/agentation.git
 cd agentation
 ```
 
-### 2. Build
+### 2. Build Agentation
 
 ```bash
 pnpm install
 pnpm build
+```
+
+### 3. Install OpenCode Fork
+
+**Option A: Download pre-built binary** (when available)
+
+Download from [OpenCode Fork Releases](https://github.com/GutMutCode/opencode/releases):
+```bash
+# Example for macOS Apple Silicon
+tar -xzf opencode-darwin-arm64.tar.gz
+mv opencode-darwin-arm64 external/opencode/packages/opencode/dist/
+```
+
+**Option B: Build from source**
+```bash
 cd external/opencode/packages/opencode && bun run build && cd ../../../..
 ```
 
-### 3. Configure OpenCode
+### 4. Configure OpenCode
 
 Create or edit `~/.config/opencode/opencode.json`:
 
@@ -70,9 +86,7 @@ Create or edit `~/.config/opencode/opencode.json`:
 
 **Replace `AGENTATION_PATH`** with your actual path:
 ```bash
-# Get your path
-pwd
-# Example: /Users/yourname/agentation
+pwd  # Example output: /Users/yourname/agentation
 ```
 
 **Sampling modes:**
@@ -82,33 +96,32 @@ pwd
 | `auto` | Auto-approve all requests |
 | `deny` | Block all requests |
 
-### 4. Load Chrome Extension
+### 5. Load Chrome Extension
 
 1. Open `chrome://extensions/`
 2. Enable **Developer mode** (top right toggle)
 3. Click **Load unpacked**
 4. Select `packages/extension` folder
 
-### 5. Start OpenCode
+### 6. Start OpenCode
 
 ```bash
-# From agentation directory
 cd external/opencode/packages/opencode
 
-# Run (choose your platform)
-./dist/opencode-darwin-arm64/bin/opencode    # Mac M1/M2
-./dist/opencode-darwin-x64/bin/opencode      # Mac Intel
-./dist/opencode-linux-arm64/bin/opencode     # Linux ARM
-./dist/opencode-linux-x64/bin/opencode       # Linux x64
-```
+# macOS
+./dist/opencode-darwin-arm64/bin/opencode    # Apple Silicon (M1/M2)
+./dist/opencode-darwin-x64/bin/opencode      # Intel
 
-First run will prompt for API key configuration.
+# Linux
+./dist/opencode-linux-arm64/bin/opencode     # ARM
+./dist/opencode-linux-x64/bin/opencode       # x64
+```
 
 ## Usage
 
 > **Important:** OpenCode must be running before using the extension.
 
-1. **Start OpenCode** (Step 5 above)
+1. **Start OpenCode** (Step 6 above)
 2. **Open any webpage** in Chrome
 3. **Find Agentation toolbar** (floating button, bottom-right corner)
 4. **Enable annotation mode** (click the toggle icon)
