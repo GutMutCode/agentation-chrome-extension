@@ -231,9 +231,11 @@ agentation
 ## Uninstall
 
 ```bash
-./uninstall.sh              # Remove all (prompts for config)
-./uninstall.sh --keep-config  # Keep opencode.json
+./uninstall.sh              # Remove binaries and build artifacts
+./uninstall.sh --keep-project  # Only remove symlinks
 ```
+
+> **Note:** This script only removes agentation entries from `opencode.json` (requires `jq`). Your other settings are preserved.
 
 Then manually remove Chrome extension: `chrome://extensions/` → Find Agentation → Remove
 

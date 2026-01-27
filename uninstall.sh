@@ -16,7 +16,6 @@ print_success() { echo -e "${GREEN}✓${NC} ${1}"; }
 print_warning() { echo -e "${YELLOW}!${NC} ${1}"; }
 print_error() { echo -e "${RED}✗${NC} ${1}"; }
 
-KEEP_CONFIG=false
 KEEP_PROJECT=false
 
 usage() {
@@ -24,16 +23,17 @@ usage() {
 Usage: ./uninstall.sh [OPTIONS]
 
 Options:
-    --keep-config   Keep opencode.json configuration
     --keep-project  Keep project folder (only remove symlinks and binaries)
     -h, --help      Show this help message
+
+Note: This script only removes agentation entries from opencode.json (requires jq).
+      Your other settings are preserved.
 EOF
     exit 0
 }
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --keep-config) KEEP_CONFIG=true; shift ;;
         --keep-project) KEEP_PROJECT=true; shift ;;
         -h|--help) usage ;;
         *) print_error "Unknown option: $1"; usage ;;
@@ -76,32 +76,29 @@ else
     print_warning "Not found: $SCRIPT_DIR/.opencode"
 fi
 
-if [[ "$KEEP_CONFIG" == false ]]; then
-    print_step "Removing configuration..."
+print_step "Configuration cleanup..."
 
-    if [[ -f "$CONFIG_FILE" ]]; then
-        if grep -q '"agentation"' "$CONFIG_FILE" 2>/dev/null; then
-            read -p "Remove agentation from $CONFIG_FILE? [y/N] " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                if grep -q '"agentation"' "$CONFIG_FILE" && ! grep -qE '"[^"]+":' "$CONFIG_FILE" | grep -v agentation; then
-                    rm -f "$CONFIG_FILE"
-                    print_success "Removed: $CONFIG_FILE"
-                else
-                    print_warning "Config has other settings. Please manually remove agentation entries from:"
-                    echo "  $CONFIG_FILE"
-                fi
-            else
-                print_warning "Skipped config removal"
-            fi
+if [[ -f "$CONFIG_FILE" ]]; then
+    if grep -q '"agentation"' "$CONFIG_FILE" 2>/dev/null; then
+        if command -v jq &> /dev/null; then
+            jq 'del(.mcp.agentation, .sampling)' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            print_success "Removed agentation entries from config"
         else
-            print_warning "Agentation not found in config"
+            print_warning "jq not found. Please manually remove agentation entries from:"
+            echo "  $CONFIG_FILE"
+            echo ""
+            echo "  Remove these sections:"
+            echo "    - mcp.agentation"
+            echo "    - sampling (entire section)"
+            echo ""
+            echo "  Or install jq and run:"
+            echo "    jq 'del(.mcp.agentation, .sampling)' $CONFIG_FILE > tmp.json && mv tmp.json $CONFIG_FILE"
         fi
     else
-        print_warning "Config file not found: $CONFIG_FILE"
+        print_success "No agentation config found (already clean)"
     fi
 else
-    print_step "Keeping configuration (--keep-config)"
+    print_success "No config file to clean"
 fi
 
 print_step "Cleaning build artifacts..."

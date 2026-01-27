@@ -231,9 +231,11 @@ agentation
 ## 제거
 
 ```bash
-./uninstall.sh              # 전체 제거 (설정 파일은 확인 후 삭제)
-./uninstall.sh --keep-config  # opencode.json 유지
+./uninstall.sh              # 바이너리와 빌드 결과물 제거
+./uninstall.sh --keep-project  # 심볼릭 링크만 제거
 ```
+
+> **참고:** 이 스크립트는 `opencode.json`에서 agentation 항목만 제거합니다 (`jq` 필요). 다른 설정은 유지됩니다.
 
 Chrome Extension은 수동 제거: `chrome://extensions/` → Agentation 찾기 → 삭제
 
