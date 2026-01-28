@@ -227,6 +227,14 @@ agentation
 - Refresh the webpage
 - Check extension is enabled in `chrome://extensions/`
 
+### Multiple browser tabs
+
+Using Agentation on multiple browser tabs simultaneously is fully supported. Each tab maintains its own connection, and feedback is routed back to the correct tab.
+
+### Running multiple OpenCode instances
+
+Only one Agentation session can run at a time (port 19989 is shared). If you try to start a second instance, it will fail to bind to the port. Close the first session before starting another.
+
 ## Packages
 
 | Package               | Description                          |
