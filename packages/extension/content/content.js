@@ -1522,6 +1522,7 @@
     document.body.appendChild(toolbar);
 
     toolbar.addEventListener("click", (e) => {
+      e.stopPropagation();
       const btn = e.target.closest("[data-action]");
       if (!btn) return;
 
