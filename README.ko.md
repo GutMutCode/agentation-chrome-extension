@@ -261,8 +261,8 @@ agentation
 ```markdown
 **Design References:**
 
-- Glassmorphism - 반투명 유리 효과 (blur + transparency)
-- Skeleton Loading - 콘텐츠 로딩 중 뼈대 표시
+- Glassmorphism - Frosted glass effect (blur + transparency)
+- Skeleton Screen - Loading placeholder UI
 
 **Feedback:**
 이 카드를 더 모던하게 만들어주세요

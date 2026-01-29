@@ -261,8 +261,8 @@ When you select design terms, they appear in the AI prompt:
 ```markdown
 **Design References:**
 
-- Glassmorphism - 반투명 유리 효과 (blur + transparency)
-- Skeleton Loading - 콘텐츠 로딩 중 뼈대 표시
+- Glassmorphism - Frosted glass effect (blur + transparency)
+- Skeleton Screen - Loading placeholder UI
 
 **Feedback:**
 Make this card look more modern
