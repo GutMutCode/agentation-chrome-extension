@@ -448,10 +448,11 @@ print_instructions() {
     echo ""
     echo -e "${YELLOW}Usage:${NC}"
     echo ""
-    echo "  1. Start OpenCode first"
-    echo "  2. Open any webpage in Chrome"
-    echo "  3. Click the Agentation toolbar (bottom-right)"
-    echo "  4. Annotate elements and send feedback to AI"
+    echo "  1. Open any webpage in Chrome"
+    echo "  2. Click the floating button (bottom-right) to expand toolbar"
+    echo "  3. Enable annotation mode (click the crosshair toggle)"
+    echo "  4. Click elements to annotate and enter feedback"
+    echo "  5. Click 'Send to AI' to submit feedback to OpenCode"
     echo ""
 }
 
