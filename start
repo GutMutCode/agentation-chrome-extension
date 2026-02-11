@@ -1,37 +1,126 @@
 #!/bin/sh
-# Agentation — Run OpenCode with MCP server
-# Usage: ./start
+# Agentation — Run xoc (OpenCode fork) with MCP server
+# Usage: ./start [--update]
+
+set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+XOC_HOME="$HOME/.xoc"
+XOC_BIN="$XOC_HOME/bin/xoc"
+VERSION_FILE="$XOC_HOME/version"
+CHECK_FILE="$XOC_HOME/last-update-check"
+GITHUB_REPO="GutMutCode/xoc"
 
-# Allow override via environment variable
-OPENCODE_BINARY="${XOPENCODE_BINARY:-}"
+detect_platform() {
+  os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+  arch="$(uname -m)"
+  case "$os" in
+    darwin|linux) ;;
+    mingw*|msys*|cygwin*) os="windows" ;;
+    *) echo "Unsupported OS: $os" >&2; exit 1 ;;
+  esac
+  case "$arch" in
+    x86_64|amd64) arch="x64" ;;
+    arm64|aarch64) arch="arm64" ;;
+    *) echo "Unsupported arch: $arch" >&2; exit 1 ;;
+  esac
+  echo "${os}-${arch}"
+}
 
-# Auto-detect: check common locations
-if [ -z "$OPENCODE_BINARY" ]; then
-  # Check if xoc is installed and can resolve the binary
-  if command -v xoc >/dev/null 2>&1; then
-    OPENCODE_BINARY="$(xoc which 2>/dev/null || true)"
+download_xoc() {
+  platform="$(detect_platform)"
+  url="https://github.com/$GITHUB_REPO/releases/latest/download/opencode-${platform}.tar.gz"
+
+  echo "Installing xoc runtime..."
+  mkdir -p "$XOC_HOME/bin"
+
+  tmpdir="$(mktemp -d)"
+  trap "rm -rf '$tmpdir'" EXIT
+
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$url" -o "$tmpdir/archive.tar.gz" || {
+      echo "Error: Failed to download from $url" >&2
+      echo "" >&2
+      echo "Build from source instead:" >&2
+      echo "  git clone https://github.com/$GITHUB_REPO && cd xoc" >&2
+      echo "  bun install && cd packages/opencode && bun run build" >&2
+      echo "  mkdir -p $XOC_HOME/bin && cp dist/opencode-${platform}/bin/opencode $XOC_BIN" >&2
+      exit 1
+    }
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q "$url" -O "$tmpdir/archive.tar.gz" || { echo "Error: Download failed." >&2; exit 1; }
+  else
+    echo "Error: curl or wget required." >&2; exit 1
   fi
+
+  tar -xzf "$tmpdir/archive.tar.gz" -C "$tmpdir"
+  cp "$tmpdir/opencode-${platform}/bin/opencode" "$XOC_BIN"
+  chmod +x "$XOC_BIN"
+
+  version="$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases/latest" 2>/dev/null \
+    | grep -o '"tag_name"[^,]*' | head -1 | cut -d'"' -f4 || true)"
+  [ -n "$version" ] && echo "$version" > "$VERSION_FILE"
+
+  trap - EXIT
+  rm -rf "$tmpdir"
+  echo "Installed: $XOC_BIN"
+}
+
+check_update() {
+  [ ! -f "$VERSION_FILE" ] && return 0
+
+  now="$(date +%s)"
+  last="$(cat "$CHECK_FILE" 2>/dev/null || echo "0")"
+  [ $((now - last)) -lt 86400 ] && return 0
+
+  echo "$now" > "$CHECK_FILE"
+  current="$(cat "$VERSION_FILE")"
+  latest="$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases/latest" 2>/dev/null \
+    | grep -o '"tag_name"[^,]*' | head -1 | cut -d'"' -f4 || true)"
+
+  if [ -n "$latest" ] && [ "$latest" != "$current" ]; then
+    echo "[xoc] Update available: $current -> $latest (run: ./start --update)"
+  fi
+}
+
+if [ "${1:-}" = "--update" ]; then
+  download_xoc
+  echo "Updated successfully."
+  exit 0
 fi
 
-if [ -z "$OPENCODE_BINARY" ]; then
-  # Check sibling xoc project
-  XOC_BINARY_PATH="$(dirname "$SCRIPT_DIR")/xoc/packages/opencode/dist/opencode-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/')/bin/opencode"
-  if [ -f "$XOC_BINARY_PATH" ]; then
-    OPENCODE_BINARY="$XOC_BINARY_PATH"
-  fi
+# --- Binary resolution (4-level fallback) ---
+XOC_BINARY="${XOPENCODE_BINARY:-}"
+
+if [ -z "$XOC_BINARY" ] && command -v xoc >/dev/null 2>&1; then
+  XOC_BINARY="$(xoc which 2>/dev/null || true)"
 fi
 
-if [ -z "$OPENCODE_BINARY" ]; then
-  echo "Error: OpenCode binary not found."
-  echo ""
-  echo "Options:"
-  echo "  1. Install xoc: git clone https://github.com/GutMutCode/xoc && cd xoc && bun install && cd packages/opencode && bun run build"  
-  echo "  2. Set XOPENCODE_BINARY environment variable to your opencode binary path"
-  echo "  3. Place xoc project next to this project (../xoc/)"
+if [ -z "$XOC_BINARY" ]; then
+  sibling="$(dirname "$SCRIPT_DIR")/xoc/packages/opencode/dist/opencode-$(detect_platform)/bin/opencode"
+  [ -f "$sibling" ] && XOC_BINARY="$sibling"
+fi
+
+if [ -z "$XOC_BINARY" ] && [ -f "$XOC_BIN" ]; then
+  XOC_BINARY="$XOC_BIN"
+fi
+
+if [ -z "$XOC_BINARY" ]; then
+  download_xoc
+  XOC_BINARY="$XOC_BIN"
+fi
+
+# --- Pre-flight: MCP server build check ---
+if [ ! -f "$SCRIPT_DIR/packages/mcp-server/dist/cli.js" ]; then
+  echo "Error: MCP server not built." >&2
+  echo "Run: pnpm install && pnpm build" >&2
   exit 1
 fi
 
+check_update
+
+# --- Inject MCP config via env var (deep-merged by OpenCode) ---
+export OPENCODE_CONFIG_CONTENT='{"mcp":{"agentation":{"type":"local","command":["node","packages/mcp-server/dist/cli.js"]}},"sampling":{"agentation":{"mode":"auto","maxTokens":4096}}}'
+
 cd "$SCRIPT_DIR"
-exec "$OPENCODE_BINARY"
+exec "$XOC_BINARY"
