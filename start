@@ -1,6 +1,6 @@
 #!/bin/sh
 # Agentation — Run xoc (OpenCode fork) with MCP server
-# Usage: ./start [--update] [--use-cache]
+# Usage: ./start [--update]
 
 set -e
 
@@ -67,41 +67,28 @@ download_xoc() {
 }
 
 check_update() {
-  [ "${XOC_NO_UPDATE_CHECK:-}" = "1" ] && return 0
+  [ ! -f "$VERSION_FILE" ] && return 0
 
   now="$(date +%s)"
   last="$(cat "$CHECK_FILE" 2>/dev/null || echo "0")"
   [ $((now - last)) -lt 86400 ] && return 0
 
-  mkdir -p "$XOC_HOME"
   echo "$now" > "$CHECK_FILE"
-
+  current="$(cat "$VERSION_FILE")"
   latest="$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases/latest" 2>/dev/null \
     | grep -o '"tag_name"[^,]*' | head -1 | cut -d'"' -f4 || true)"
-  [ -z "$latest" ] && return 0
 
-  if [ "$XOC_SOURCE" = "cache" ] || [ "$XOC_BINARY" = "$XOC_BIN" ]; then
-    current="$(cat "$VERSION_FILE" 2>/dev/null || echo "")"
-    if [ -n "$current" ] && [ "$latest" != "$current" ]; then
-      echo "[xoc] Updating: $current -> $latest"
-      download_xoc
-    fi
-  else
-    current="$(cat "$VERSION_FILE" 2>/dev/null || echo "")"
-    if [ -z "$current" ] || [ "$latest" != "$current" ]; then
-      echo "[xoc] $latest available (using dev build from $(dirname "$XOC_BINARY"))" >&2
-    fi
+  if [ -n "$latest" ] && [ "$latest" != "$current" ]; then
+    echo "[xoc] Updating: $current -> $latest"
+    download_xoc
   fi
 }
 
-XOC_SOURCE="${XOC_SOURCE:-}"
-
-for arg in "$@"; do
-  case "$arg" in
-    --update) download_xoc; echo "Updated successfully."; exit 0 ;;
-    --use-cache) XOC_SOURCE="cache" ;;
-  esac
-done
+if [ "${1:-}" = "--update" ]; then
+  download_xoc
+  echo "Updated successfully."
+  exit 0
+fi
 
 # --- Binary resolution (4-level fallback) ---
 XOC_BINARY="${XOPENCODE_BINARY:-}"
@@ -110,7 +97,7 @@ if [ -z "$XOC_BINARY" ] && command -v xoc >/dev/null 2>&1; then
   XOC_BINARY="$(xoc which 2>/dev/null || true)"
 fi
 
-if [ -z "$XOC_BINARY" ] && [ "$XOC_SOURCE" != "cache" ]; then
+if [ -z "$XOC_BINARY" ]; then
   sibling="$(dirname "$SCRIPT_DIR")/xoc/packages/opencode/dist/opencode-$(detect_platform)/bin/opencode"
   [ -f "$sibling" ] && XOC_BINARY="$sibling"
 fi
