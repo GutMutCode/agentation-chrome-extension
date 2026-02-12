@@ -79,7 +79,8 @@ check_update() {
     | grep -o '"tag_name"[^,]*' | head -1 | cut -d'"' -f4 || true)"
 
   if [ -n "$latest" ] && [ "$latest" != "$current" ]; then
-    echo "[xoc] Update available: $current -> $latest (run: ./start --update)"
+    echo "[xoc] Updating: $current -> $latest"
+    download_xoc
   fi
 }
 
