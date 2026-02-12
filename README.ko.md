@@ -25,29 +25,19 @@ AI 기반 UI 피드백 시스템. 웹페이지 요소에 어노테이션을 달�
 **Extension만 설치:**
 
 ```bash
-git clone https://github.com/GutMutCode/agentation-chrome-extension.git agentation
+git clone https://github.com/GutMutCode/agentation.git
 # 그 다음: chrome://extensions/ → 개발자 모드 → 압축해제된 확장 프로그램 로드 → (루트 폴더)
 ```
 
 ## 💡 빠른 시작: MCP 연동
 
 ```bash
-git clone https://github.com/GutMutCode/agentation-chrome-extension.git agentation
+git clone https://github.com/GutMutCode/agentation.git
 cd agentation
-pnpm install && pnpm build
 ./start
 ```
 
-`./start` 스크립트가 [xoc](https://github.com/GutMutCode/xoc) 런타임을 자동으로 찾거나 다운로드합니다.
-
 그 다음 Chrome Extension 로드: `chrome://extensions/` → 개발자 모드 → 압축해제된 확장 프로그램 로드 → (루트 폴더)
-
-### 글로벌 명령어 (선택 사항)
-
-```bash
-./install.sh    # ~/.local/bin/agentation 생성
-agentation      # 어디서든 실행
-```
 
 ## 왜 이 Fork인가?
 
@@ -61,22 +51,14 @@ agentation      # 어디서든 실행
 ## 설치
 
 ```bash
-git clone https://github.com/GutMutCode/agentation-chrome-extension.git agentation
+git clone https://github.com/GutMutCode/agentation.git
 cd agentation
-pnpm install && pnpm build
+# (선택 사항) xoc 연동
+# xoc add agentation .
 ```
 
 1. **Extension 로드**: `chrome://extensions/` → 개발자 모드 → 압축해제된 확장 프로그램 로드 → `agentation` 루트 디렉토리 선택.
-2. **MCP 서버 실행**: `./start`를 실행하여 xoc 런타임과 함께 구동합니다.
-
-### `./start` 런타임 탐색 순서
-
-| 우선순위 | 소스 | 경우 |
-| -------- | ---- | ---- |
-| 1 | `$XOPENCODE_BINARY` 환경변수 | 수동 지정 |
-| 2 | `xoc which` | xoc가 전역 설치된 경우 |
-| 3 | `../xoc/` 형제 디렉토리 | 개발 환경 |
-| 4 | `~/.xoc/bin/xoc` | 공유 캐시 (첫 실행 시 자동 다운로드) |
+2. **MCP 서버 실행**: `./start`를 실행하여 OpenCode와 함께 구동합니다.
 
 ### xoc 연동 (선택 사항)
 
@@ -112,7 +94,7 @@ xoc run agentation
 - **Node.js** 20+
 - **pnpm** 또는 **npm** (pnpm 권장: `npm install -g pnpm`)
 - **Chrome** 브라우저
-- **xoc 런타임** (`./start`가 자동 다운로드하거나, [xoc](https://github.com/GutMutCode/xoc)를 통해 제공)
+- **OpenCode** 바이너리 ([xoc](https://github.com/GutMutCode/xoc)를 통해 제공되거나 `XOPENCODE_BINARY` 환경 변수로 설정)
 
 ## 사용법
 
