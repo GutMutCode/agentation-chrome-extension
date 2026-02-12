@@ -25,19 +25,29 @@ AI-powered UI feedback system. Annotate webpage elements and send feedback direc
 **Extension-only install:**
 
 ```bash
-git clone https://github.com/GutMutCode/agentation.git
+git clone https://github.com/GutMutCode/agentation-chrome-extension.git agentation
 # Then: chrome://extensions/ → Developer mode → Load unpacked → (root folder)
 ```
 
 ## 💡 Quick Start: With MCP
 
 ```bash
-git clone https://github.com/GutMutCode/agentation.git
+git clone https://github.com/GutMutCode/agentation-chrome-extension.git agentation
 cd agentation
+pnpm install && pnpm build
 ./start
 ```
 
+The `./start` script automatically finds or downloads the [xoc](https://github.com/GutMutCode/xoc) runtime.
+
 Then load Chrome extension: `chrome://extensions/` → Developer mode → Load unpacked → (root folder)
+
+### Global Command (Optional)
+
+```bash
+./install.sh    # creates ~/.local/bin/agentation
+agentation      # run from anywhere
+```
 
 ## Why This Fork?
 
@@ -51,14 +61,22 @@ Then load Chrome extension: `chrome://extensions/` → Developer mode → Load u
 ## Installation
 
 ```bash
-git clone https://github.com/GutMutCode/agentation.git
+git clone https://github.com/GutMutCode/agentation-chrome-extension.git agentation
 cd agentation
-# (Optional) xoc integration
-# xoc add agentation .
+pnpm install && pnpm build
 ```
 
 1. **Load Extension**: `chrome://extensions/` → Developer mode → Load unpacked → select `agentation` root directory.
-2. **Run MCP Server**: Execute `./start` to run with OpenCode.
+2. **Run MCP Server**: Execute `./start` to launch with xoc runtime.
+
+### How `./start` Finds the Runtime
+
+| Priority | Source | When |
+| -------- | ------ | ---- |
+| 1 | `$XOPENCODE_BINARY` env var | Manual override |
+| 2 | `xoc which` | xoc installed globally |
+| 3 | `../xoc/` sibling directory | Dev setup |
+| 4 | `~/.xoc/bin/xoc` | Shared cache (auto-downloaded on first run) |
 
 ### xoc Integration (Optional)
 
@@ -94,7 +112,7 @@ xoc run agentation
 - **Node.js** 20+
 - **pnpm** or **npm** (pnpm recommended: `npm install -g pnpm`)
 - **Chrome** browser
-- **OpenCode** binary (provided via [xoc](https://github.com/GutMutCode/xoc) or `XOPENCODE_BINARY` environment variable)
+- **xoc runtime** (auto-downloaded by `./start`, or via [xoc](https://github.com/GutMutCode/xoc))
 
 ## Usage
 
